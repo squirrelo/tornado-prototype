@@ -8,12 +8,16 @@ REQUIREMENTS
 
 Programs
 > Python 2.7
-> reddis-server
+>
+> redis-server
 
 Python libraries
 > tornado
+>
 > redis
+>
 > tornado-redis
+>
 > celery
 
 RUNING THE EXAMPLE
