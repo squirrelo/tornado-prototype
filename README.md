@@ -28,3 +28,7 @@ Start the background daemons for redis-server and celery
 Start the webserver by running webserver.py
 
 Navigate to localhost:8888 and create a user/pass to log in with. Everything else should be self explanatory.
+
+KNOWN ISSUES
+=================
+Websockets issue with Safari in non-localhost setting.
