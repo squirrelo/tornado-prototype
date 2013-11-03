@@ -111,7 +111,8 @@ class WaitingHandler(tornado.web.RequestHandler):
     def post(self):
         channel = self.get_argument("channel")
         self.render("waiting.html", channel=channel)
-        #call celery function after rendering the page to avoid race condition
+        #call celery function after rendering the page to help avoid race 
+        #condition. Still need to find way to eliminate race conditions
         stall_time.delay(channel, 3)
         #TODO: check redis server rpush from celery to see if jobs done 
         #      before page load or if you left page and came back
