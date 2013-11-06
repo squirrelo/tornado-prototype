@@ -32,6 +32,12 @@ class MessageHandler(WebSocketHandler):
         #listen from tornadoredis makes the listen object asynchronous
         #if using standard redis lib, it blocks while listening
         self.client.listen(self.callback)
+        #try and fight race condition by loading from redis after listen started
+        oldmessages = yield tornado.gen.Task(self.client.lrange, 
+            self.channel, 0, -1)
+        if oldmessages != None:
+            for message in oldmessages:
+                self.write_message(message)
 
     def callback(self, msg):
         if msg.kind == 'message':
