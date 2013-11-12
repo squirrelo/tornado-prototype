@@ -1,6 +1,7 @@
 #adapted from https://github.com/leporo/tornado-redis/blob/master/demos/websockets
 
 from tornadoredis import Client
+from app.tasks import r_server
 from tornado.websocket import WebSocketHandler
 import tornado.gen
 
@@ -33,8 +34,8 @@ class MessageHandler(WebSocketHandler):
         #if using standard redis lib, it blocks while listening
         self.client.listen(self.callback)
         #try and fight race condition by loading from redis after listen started
-        oldmessages = yield tornado.gen.Task(self.client.lrange, 
-            self.channel, 0, -1)
+        #need to use std redis lib because tornadoredis is in subscribed state
+        oldmessages = r_server.lrange(self.channel, 0, -1)
         if oldmessages != None:
             for message in oldmessages:
                 self.write_message(message)

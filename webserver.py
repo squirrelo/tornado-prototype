@@ -105,15 +105,24 @@ class AuthLogoutHandler(BaseHandler):
         
 #WAITING PAGE!!!
 class WaitingHandler(tornado.web.RequestHandler):
+    def get_current_user(self):
+        user = self.get_secure_cookie("user")
+        if user == None:
+            #ERROR OUT SINCE NO USER 
+            self.redirect("/")
+        else:
+            return user.strip('" ')
+
     def get(self):
-        pass
+        channel = self.get_current_user()
+        self.render("waiting.html", channel=channel)
 
     def post(self):
         channel = self.get_argument("channel")
         self.render("waiting.html", channel=channel)
         #call celery function after rendering the page to help avoid race 
         #condition. Still need to find way to eliminate race conditions
-        stall_time.delay(channel, 0)
+        stall_time.delay(channel, 10)
         #TODO: check redis server rpush from celery to see if jobs done 
         #      before page load or if you left page and came back
 

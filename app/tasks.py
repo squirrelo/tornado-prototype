@@ -12,6 +12,7 @@ def stall_time(channel, time=5):
         msg = 'Task %s complete!' % i
         #the two prints not needed in normal use, just for demoing
         print msg
+        #need the rpush and publish for leaving page and if race condition
         r_server.rpush(channel, msg)
         r_server.publish(channel, msg)
         sleep(time)
