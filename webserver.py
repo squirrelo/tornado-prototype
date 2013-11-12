@@ -20,7 +20,11 @@ define("port", default=8888, help="run on the given port", type=int)
 
 class BaseHandler(tornado.web.RequestHandler):
     def get_current_user(self):
-        return self.get_secure_cookie("user")
+        user = self.get_secure_cookie("user")
+        if user == None:
+            return ''
+        else:
+            return user.strip('" ')
 
 class MainHandler(BaseHandler):
     @tornado.web.authenticated
@@ -104,14 +108,8 @@ class AuthLogoutHandler(BaseHandler):
         self.redirect("/")
         
 #WAITING PAGE!!!
-class WaitingHandler(tornado.web.RequestHandler):
-    def get_current_user(self):
-        user = self.get_secure_cookie("user")
-        if user == None:
-            #ERROR OUT SINCE NO USER 
-            self.redirect("/")
-        else:
-            return user.strip('" ')
+class WaitingHandler(BaseHandler):
+
 
     def get(self):
         channel = self.get_current_user()
@@ -127,7 +125,7 @@ class WaitingHandler(tornado.web.RequestHandler):
         #condition. Still need to find way to eliminate race conditions
         stall_time.delay(channel, 5)
 
-class FileHandler(tornado.web.RequestHandler):
+class FileHandler(BaseHandler):
     def get(self):
         pass
 
