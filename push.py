@@ -13,11 +13,20 @@ class MessageHandler(WebSocketHandler):
         self.client.connect()
 
     def on_message(self, msg):
+        print "MSG:" + msg
         #listens for handshake from page
-        if "channel:" in msg: 
+        if "user:" in msg: 
             self.channel = msg.split(':')[1]
             #need to split the rest off to new func so it can be asynchronous
             self.listen()
+        if "done:" in msg:
+            #handshake the done to avoid error if job finishes before page loads
+            job = msg.split(':')[1]
+            r_server.lrem(self.channel + ":jobs", 0, job)
+            for msg in r_server.lrange(self.channel + ":messages", 0, -1):
+                if job in msg:
+                    r_server.lrem(self.channel + ":messages", 0, msg)
+
 
     #decorator turns the function into an asynchronous generator object
     @tornado.gen.engine
@@ -25,17 +34,14 @@ class MessageHandler(WebSocketHandler):
         #runs task given, with the yield required to get returned value
         #equivalent of callback/wait pairing from tornado.gen
         yield tornado.gen.Task(self.client.subscribe, self.channel)
-        if self.client.subscribed:
-            #self.write_message used to send message to client
-            self.write_message("Subscribed to " + self.channel)
-        else:
+        if not self.client.subscribed:
             self.write_message('ERROR IN SUBSCRIPTION')
         #listen from tornadoredis makes the listen object asynchronous
         #if using standard redis lib, it blocks while listening
         self.client.listen(self.callback)
         #try and fight race condition by loading from redis after listen started
         #need to use std redis lib because tornadoredis is in subscribed state
-        oldmessages = r_server.lrange(self.channel, 0, -1)
+        oldmessages = r_server.lrange(self.channel + ':messages', 0, -1)
         if oldmessages != None:
             for message in oldmessages:
                 self.write_message(message)

@@ -15,6 +15,7 @@ from settings import *
 from app.tasks import stall_time
 from push import MessageHandler
 from app.tasks import r_server
+from time import localtime
 
 define("port", default=8888, help="run on the given port", type=int)
 
@@ -109,21 +110,24 @@ class AuthLogoutHandler(BaseHandler):
         
 #WAITING PAGE!!!
 class WaitingHandler(BaseHandler):
-
-
     def get(self):
-        channel = self.get_current_user()
-        if r_server.exists(channel):
-            self.render("waiting.html", channel=channel)
+        user = self.get_current_user()
+        if r_server.exists(user + ":jobs"):
+            jobs=r_server.lrange(user + ":jobs", 0, -1)
+            self.render("waiting.html", user=user, jobs=jobs, totaljobs=len(jobs))
         else:
             self.redirect('/')
 
     def post(self):
-        channel = self.get_argument("channel")
-        self.render("waiting.html", channel=channel)
-        #call celery function after rendering the page to help avoid race 
-        #condition. Still need to find way to eliminate race conditions
-        stall_time.delay(channel, 5)
+        time = localtime()
+        timestamp = '-'.join(map(str,[time.tm_year, time.tm_mon, time.tm_mday,
+            time.tm_hour, time.tm_min, time.tm_sec]))
+        user = self.get_current_user()
+        r_server.rpush(user + ":jobs", timestamp)
+        jobs=r_server.lrange(user + ":jobs", 0, -1)
+        self.render("waiting.html", user=user, jobs=jobs, totaljobs=len(jobs))
+        #MUST CALL CELERY AFTER PAGE CALL!
+        stall_time.delay(user, timestamp, 10)
 
 class FileHandler(BaseHandler):
     def get(self):

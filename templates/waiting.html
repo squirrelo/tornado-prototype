@@ -5,18 +5,23 @@
     function connect() {
         var host = 'ws://' + getBaseURL() + 'consumer/';
         var websocket = new WebSocket(host);
+        donecount = 0
+        totaljobs = {{totaljobs}}
 
         websocket.onopen = function() {
-            websocket.send('channel:{{channel}}');
+            websocket.send('user:{{user}}');
         };
         websocket.onmessage = function(evt) {
             console.log(evt.data);
-            if(evt.data == "done") {
-                window.location.replace("/");
+            if(~evt.data.indexOf('done')) {
+                websocket.send(evt.data)
+                if(++donecount == totaljobs) { window.location.replace("/"); }
             }
             else {
-                list = document.getElementById("list");
-                list.innerHTML += '<li>' + evt.data + '</li>';
+                //messages are in format JOBID:message
+                jobinfo = evt.data.split(":")
+                list = document.getElementById(jobinfo[0]);
+                list.innerHTML += '<li>' + jobinfo[1] + '</li>';
             }
         };
         websocket.onerror = function(evt) { };
@@ -36,8 +41,10 @@ function getBaseURL () {
     <h1>
         <img alt="QIIME logo" src="{{ static_url("img/logo.png") }}">
     </h1>
-    <h1>PLEAAEAAESE WAIT...</h1>
-    <ul id='list' name='list'>
-    </ul>
+    <h1>PLEAAEAAESE WAIT...</h1>  
+    {% for jobname in jobs %}
+        <p><h3>{{jobname}}</h3></p>
+        <ul name='{{jobname}}' id='{{jobname}}'></ul>
+    {% end %}
 </body>
 </html>
