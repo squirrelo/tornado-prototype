@@ -4,6 +4,12 @@ from tornadoredis import Client
 from app.tasks import r_server
 from tornado.websocket import WebSocketHandler
 import tornado.gen
+from json import loads
+
+#all messages are in json format. They must have the following format:
+# 'job': jobname
+# 'msg': message to print
+# 'results': list of files created if any
 
 
 class MessageHandler(WebSocketHandler):
@@ -13,19 +19,20 @@ class MessageHandler(WebSocketHandler):
         self.client.connect()
 
     def on_message(self, msg):
-        print "MSG:" + msg
+        msginfo = loads(msg)
         #listens for handshake from page
-        if "user:" in msg: 
-            self.channel = msg.split(':')[1]
+        if "user:" in msginfo['msg']:
+            self.channel = msginfo['msg'].split(':')[1]
             #need to split the rest off to new func so it can be asynchronous
             self.listen()
-        if "done:" in msg:
+        if "done" in msginfo['msg']:
             #handshake the done to avoid error if job finishes before page loads
-            job = msg.split(':')[1]
+            job = msginfo['job']
             r_server.lrem(self.channel + ":jobs", 0, job)
-            for msg in r_server.lrange(self.channel + ":messages", 0, -1):
-                if job in msg:
-                    r_server.lrem(self.channel + ":messages", 0, msg)
+            for json in r_server.lrange(self.channel + ":messages", 0, -1):
+                jsonjob = loads(json)['job']
+                if job == jsonjob:
+                    r_server.lrem(self.channel + ":messages", 0, json)
 
 
     #decorator turns the function into an asynchronous generator object

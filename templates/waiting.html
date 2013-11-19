@@ -9,19 +9,23 @@
         totaljobs = {{totaljobs}}
 
         websocket.onopen = function() {
-            websocket.send('user:{{user}}');
+            websocket.send(JSON.stringify({'msg': 'user:{{user}}'}));
         };
         websocket.onmessage = function(evt) {
-            console.log(evt.data);
-            if(~evt.data.indexOf('done')) {
+            console.log(evt.data)
+            message = JSON.parse(evt.data);
+            if(~message['msg'].indexOf('done')) {
                 websocket.send(evt.data)
                 if(++donecount == totaljobs) { window.location.replace("/"); }
             }
             else {
-                //messages are in format JOBID:message
-                jobinfo = evt.data.split(":")
-                list = document.getElementById(jobinfo[0]);
-                list.innerHTML += '<li>' + jobinfo[1] + '</li>';
+                list = document.getElementById(message.job);
+                list.innerHTML += message.msg + '<br />';
+                for(var i=0; i<message.results.length; i++) {
+                    list.innerHTML += '<a href="' + getBaseURL() + 
+                        message.results[i] + '">' + message.results[i] + '</a> ';
+                }
+                list.innerHTML += '<br />'
             }
         };
         websocket.onerror = function(evt) { };
@@ -44,7 +48,7 @@ function getBaseURL () {
     <h1>PLEAAEAAESE WAIT...</h1>  
     {% for jobname in jobs %}
         <p><h3>{{jobname}}</h3></p>
-        <ul name='{{jobname}}' id='{{jobname}}'></ul>
+        <div name='{{jobname}}' id='{{jobname}}'></div>
     {% end %}
 </body>
 </html>
