@@ -16,8 +16,16 @@ from app.tasks import stall_time
 from push import MessageHandler
 from app.tasks import r_server
 from time import localtime
+from psycopg2 import connect as pg_connect
+from psycopg2.extras import DictCursor
 
 define("port", default=8888, help="run on the given port", type=int)
+try:
+    postgres=pg_connect("dbname='qiita' user='defaultuser' \
+        password='defaultpassword' host='localhost'")
+    pgcursor = postgres.cursor(cursor_factory=DictCursor)
+except:
+    print "I am unable to connect to the Postgres database."
 
 class BaseHandler(tornado.web.RequestHandler):
     def get_current_user(self):
@@ -32,7 +40,16 @@ class MainHandler(BaseHandler):
     def get(self):
         username = self.current_user
         username = username.strip('" ')
-        self.render("index.html", username = username)
+        SQL = "SELECT DISTINCT job FROM completed_jobs WHERE username = '%s'"\
+            % username
+        pgcursor.execute(SQL)
+        completedjobs = pgcursor.fetchall()
+        if completedjobs == None:
+            cjobs = []
+        else:
+            cjobs = [job[0] for job in completedjobs]
+        print cjobs
+        self.render("index.html", username = username, jobs = cjobs)
 
 
 class AuthCreateHandler(BaseHandler):
@@ -127,7 +144,7 @@ class WaitingHandler(BaseHandler):
         jobs=r_server.lrange(user + ":jobs", 0, -1)
         self.render("waiting.html", user=user, jobs=jobs, totaljobs=len(jobs))
         #MUST CALL CELERY AFTER PAGE CALL!
-        stall_time.delay(user, timestamp, 10)
+        stall_time.delay(user, timestamp, 3)
 
 class FileHandler(BaseHandler):
     def get(self):
@@ -146,6 +163,24 @@ class FileHandler(BaseHandler):
         output_file.close()
         self.redirect("/")
 
+class ShowJobHandler(BaseHandler):
+    def get(self):
+        pass
+
+    def post(self):
+        job = self.get_argument('job')
+        user = self.get_current_user()
+        SQL = "SELECT * FROM completed_jobs WHERE username ='%s' and job = '%s'"\
+         % (user,job)
+        try:
+            pgcursor.execute(SQL)
+            jobinfo = pgcursor.fetchall()
+            self.render("jobinfo.html", job = job, jobinfo=jobinfo)
+        except:
+            print "ERROR: JOB INFO CAN NOT BE RETRIEVED:\n" + SQL
+
+
+
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -157,6 +192,7 @@ class Application(tornado.web.Application):
             (r"/waiting/", WaitingHandler),
             (r"/consumer/", MessageHandler),
             (r"/fileupload/", FileHandler),
+            (r"/completed/", ShowJobHandler)
         ]
         settings = {
             "template_path": TEMPLATE_PATH,

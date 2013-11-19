@@ -40,3 +40,4 @@ nosetests.xml
 
 #OS X files
 .DS_Store
+notes.txt

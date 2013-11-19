@@ -10,6 +10,8 @@ Programs
 > Python 2.7
 >
 > redis-server
+>
+>postgreSQL
 
 Python libraries
 > tornado
@@ -19,6 +21,8 @@ Python libraries
 > tornado-redis
 >
 > celery
+>
+>psycopg2
 
 RUNING THE EXAMPLE
 =================

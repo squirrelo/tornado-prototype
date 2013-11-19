@@ -9,6 +9,15 @@
                 <input type='hidden' id = 'channel' name='channel' value='{{username}}'>
                 <input id="run-btn" class="btn btn-blue" type="submit" value="Run Job" tabindex="3">
             </form>
+             <h3>Completed jobs selection and review test</h3>
+                <form action="/completed/" method="post" id='done_form' name='done_form'>
+                <select name='job' id='job' form='done_form' required>
+                {% for jobname in jobs %}
+                    <option>{{jobname}}</option>
+                {% end %}
+                </select>
+                <input id="run-btn" class="btn btn-blue" type="submit" value="Get Job" tabindex="3">
+            </form>
                 <h3>File Upload Test</h3>
                 <form enctype="multipart/form-data" action="/fileupload/" method="post">
                     File: <input type="file" name="file"><br />

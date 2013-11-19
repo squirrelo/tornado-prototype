@@ -16,6 +16,8 @@
             message = JSON.parse(evt.data);
             if(~message['msg'].indexOf('done')) {
                 websocket.send(evt.data)
+                list = document.getElementById(message.job);
+                list.innerHTML += 'Job Complete<br />';
                 if(++donecount == totaljobs) { window.location.replace("/"); }
             }
             else {
