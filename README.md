@@ -26,7 +26,7 @@ Python libraries
 
 RUNING THE EXAMPLE
 =================
-Start the background daemons for redis-server and celery
+Start the background daemons for redis-server, postgreSQL, and celery
 >For celery, run the following from the base folder: celery -A app worker
 
 Start the webserver by running webserver.py
