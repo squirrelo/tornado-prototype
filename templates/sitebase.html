@@ -1,0 +1,57 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-US">
+<head>
+  <title>QIIME meta-analyis Page Mockup</title>
+  <link rel="stylesheet" href="{{ static_url("style.css") }}" type="text/css">
+  <link rel="stylesheet" href="{{ static_url("qiime.css") }}" type="text/css">
+  {% block head %}{% end %}
+</head>
+<body>
+
+<div class="container">
+  <div id="header">
+    <div id="study_info">
+      {% if user != '' %}
+       Loggged in as {{user}} | <a href="/auth/logout/">Logout</a>
+      {% else %}
+        Please Log In
+      {% end %}
+    </div>
+  </div>
+</div>
+<table class="header_table">
+    <tr>
+        <td class="header_table_cell">        
+            <ul class="topnav">
+                <li><a href="/">Home</a></li>
+                
+
+                <li>
+                    <a href="/meta/" target="_parent">Meta Analysis</a>
+                    <ul class="subnav">
+                        <li><a href="/meta/" target="_parent">Create New Meta-Analysis</a></li>
+                    </ul>
+                </li>
+
+                <li>
+                    <a href="/" target="_parent">Tools</a>
+                    <ul class="subnav">
+                        <li><a href="/" target="_parent">Ontology Lookup Service</a></li>
+                        <li><a href="/" target="_parent">Georeference Utility</a></li>
+                    </ul>
+                </li>
+                <li><a href="/" target="_blank">Help</a></li>
+            </ul>
+            </td>
+        </tr>
+    </table>
+
+<div id="content">
+  {% block content %}{% end %}
+</div>
+
+<div id="footer">
+</div>
+
+</body>
+</html>

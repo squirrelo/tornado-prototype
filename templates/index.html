@@ -1,32 +1,29 @@
-        <div id="main-container">
-            <div id="main">
-                <h1>
-                    <img alt="QIIME logo" src="{{ static_url("img/logo.png") }}">
-                </h1>
-                WELCOME {{username}}!<br />
-                <h3>Celery w/ Push Notifications Test</h3>
-                <form action="/waiting/" method="post" id="job_form">
-                <input type='hidden' id = 'channel' name='channel' value='{{username}}'>
-                <input id="run-btn" class="btn btn-blue" type="submit" value="Run Job" tabindex="3">
-            </form>
-             <h3>Completed jobs selection and review test</h3>
-                <form action="/completed/" method="post" id='done_form' name='done_form'>
-                <select name='job' id='job' form='done_form' required>
-                {% for jobname in jobs %}
-                    <option>{{jobname}}</option>
-                {% end %}
-                </select>
-                <input id="run-btn" class="btn btn-blue" type="submit" value="Get Job" tabindex="3">
-            </form>
-                <h3>File Upload Test</h3>
-                <form enctype="multipart/form-data" action="/fileupload/" method="post">
-                    File: <input type="file" name="file"><br />
-                    New filename (NO EXTENSION): <br />
-                    <input type='text' name='filename'><br />
-                    <input type="submit" value="Upload">
-                </form> 
-                <p><div id="logout">
-                    <a href="/auth/logout/">Logout</a>
-                </div></p>
-            </div>
-        </div>
+{% extends sitebase.html %}
+{%block content %}
+    <h3>Celery w/ Push Notifications Test</h3>
+    <form action="/waiting/" method="post" id="job_form">
+    <input type='hidden' id = 'channel' name='channel' value='{{user}}'>
+    <input id="run-btn" class="btn btn-blue" type="submit" value="Run Job" tabindex="3">
+</form>
+ <h3>Completed jobs selection and review test</h3>
+    <form action="/completed/" method="post" id='done_form' name='done_form'>
+    <select name='job' id='job' form='done_form' required>
+    {% for jobname in jobs %}
+        <option>{{jobname}}</option>
+    {% end %}
+    </select>
+    <input id="run-btn" class="btn btn-blue" type="submit" value="Get Job" tabindex="3">
+</form>
+    <h3>File Upload Test</h3>
+    <form enctype="multipart/form-data" action="/fileupload/" method="post">
+        File: <input type="file" name="file"><br />
+        New filename (NO EXTENSION): <br />
+        <input type='text' name='filename'><br />
+        <input type="submit" value="Upload">
+    </form> 
+    <p><div id="logout">
+        <a href="/auth/logout/">Logout</a>
+    </div></p>
+</div>
+</div>
+{% end %}

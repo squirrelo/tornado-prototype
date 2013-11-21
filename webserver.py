@@ -48,8 +48,7 @@ class MainHandler(BaseHandler):
             cjobs = []
         else:
             cjobs = [job[0] for job in completedjobs]
-        print cjobs
-        self.render("index.html", username = username, jobs = cjobs)
+        self.render("index.html", user=username, jobs=cjobs)
 
 
 class AuthCreateHandler(BaseHandler):
@@ -58,7 +57,7 @@ class AuthCreateHandler(BaseHandler):
             errormessage = self.get_argument("error")
         except:
             errormessage = ""
-        self.render("create.html", errormessage = errormessage)
+        self.render("create.html", user=self.current_user, errormessage = errormessage)
 
     def post(self):
         username = self.get_argument("username", "")
@@ -83,7 +82,7 @@ class AuthCreateHandler(BaseHandler):
         if setstatus:
             return True, ""
         else:
-            return False, "Databse set error!"
+            return False, "Database set error!"
 
 
 class AuthLoginHandler(BaseHandler):
@@ -92,7 +91,7 @@ class AuthLoginHandler(BaseHandler):
             errormessage = self.get_argument("error")
         except:
             errormessage = ""
-        self.render("login.html", errormessage = errormessage)
+        self.render("login.html", user=self.current_user, errormessage = errormessage)
 
     def check_permission(self, username, password):
         dbpass = r_server.get("user:"+username)
@@ -175,11 +174,9 @@ class ShowJobHandler(BaseHandler):
         try:
             pgcursor.execute(SQL)
             jobinfo = pgcursor.fetchall()
-            self.render("jobinfo.html", job = job, jobinfo=jobinfo)
+            self.render("jobinfo.html", user=user, job = job, jobinfo=jobinfo)
         except:
             print "ERROR: JOB INFO CAN NOT BE RETRIEVED:\n" + SQL
-
-
 
 
 class Application(tornado.web.Application):
@@ -192,7 +189,7 @@ class Application(tornado.web.Application):
             (r"/waiting/", WaitingHandler),
             (r"/consumer/", MessageHandler),
             (r"/fileupload/", FileHandler),
-            (r"/completed/", ShowJobHandler)
+            (r"/completed/", ShowJobHandler),
         ]
         settings = {
             "template_path": TEMPLATE_PATH,

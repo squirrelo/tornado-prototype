@@ -1,5 +1,6 @@
-<html>
-<head>
+{% extends sitebase.html %}
+
+{%block head%}
 <script type="text/javascript">
 
     function connect() {
@@ -42,15 +43,12 @@ function getBaseURL () {
 }
 
 </script>
-</head>
-<body>
-    <h1>
-        <img alt="QIIME logo" src="{{ static_url("img/logo.png") }}">
-    </h1>
+{% end %}
+
+{%block content %}
     <h1>PLEAAEAAESE WAIT...</h1>  
     {% for jobname in jobs %}
         <p><h3>{{jobname}}</h3></p>
         <div name='{{jobname}}' id='{{jobname}}'></div>
     {% end %}
-</body>
-</html>
+{% end %}

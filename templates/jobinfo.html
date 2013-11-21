@@ -1,9 +1,5 @@
-<html>
-<head><title>JOB INFO PAGE</title></head>
-<body>
-    <h1>
-        <img alt="QIIME logo" src="{{ static_url("img/logo.png") }}">
-    </h1>
+{% extends sitebase.html %}
+{%block content %}
     <h1>JOB {{job}}</h1>  
     {% for jobstep in jobinfo %}
         {{jobstep['msg']}}<br />
@@ -12,6 +8,4 @@
         {% end %}
         <br \>
     {% end %}
-<p><a href="/">Home</a></p>
-</body>
-</html>
+{% end %}
