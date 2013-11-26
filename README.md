@@ -29,6 +29,20 @@ RUNING THE EXAMPLE
 Start the background daemons for redis-server, postgreSQL, and celery
 >For celery, run the following from the base folder: celery -A app worker
 
+For the postgres database setup, do the following:
+>1) Make a database called 'qiime' and user 'defaultuser' with password 'defaultpassword'
+>
+>2) Add the following table:
+>
+>CREATE TABLE completed_jobs (
+>    id bigserial PRIMARY KEY,
+>    username text NOT NULL,
+>    job text NOT NULL,
+>    msg text NOT NULL,
+>    files text[],
+>    date_added timestamp default NULL
+>);
+
 Start the webserver by running webserver.py
 
 Navigate to localhost:8888 and create a user/pass to log in with. Everything else should be self explanatory.
