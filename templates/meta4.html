@@ -1,0 +1,20 @@
+{% extends sitebase.html %}
+{% autoescape None %}
+{%block content %}
+<table width='100%'>
+  <tr>
+    <td width=200>
+      1) Choose studies<br />
+      2) Select analyses<br />
+      3) Set analysis options<br />
+      <b>4) Review analysis</b><br />
+      5) Running analysis<br />
+      6) Analysis results<br />
+    </td>
+    <td>
+      <h1>Review Meta-analysis</h1>
+      {% raw analysisinfo.html() %}
+    </td>
+  <tr>
+</table>
+{% end %}

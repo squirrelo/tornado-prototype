@@ -25,7 +25,7 @@ try:
         password='defaultpassword' host='localhost'")
     pgcursor = postgres.cursor(cursor_factory=DictCursor)
 except:
-    print "I am unable to connect to the Postgres database."
+    raise RuntimeError("ERROR: unable to connect to the Postgres database.")
 
 class BaseHandler(tornado.web.RequestHandler):
     def get_current_user(self):
@@ -34,6 +34,17 @@ class BaseHandler(tornado.web.RequestHandler):
             return ''
         else:
             return user.strip('" ')
+
+    def write_error(self, status_code, **kwargs):
+        from traceback import format_exception
+        if self.settings.get("debug") and "exc_info" in kwargs:
+            exc_info = kwargs["exc_info"]
+            trace_info = ''.join(["%s<br />" % line for line in format_exception(*exc_info)])
+            request_info = ''.join(["<strong>%s</strong>: %s<br />" % (k, self.request.__dict__[k] ) for k in self.request.__dict__.keys()])
+            error = exc_info[1]
+
+            self.render('error.html', error=error, trace_info=trace_info,
+                request_info=request_info, user=self.get_current_user())
 
 class MainHandler(BaseHandler):
     @tornado.web.authenticated
@@ -126,6 +137,7 @@ class AuthLogoutHandler(BaseHandler):
         
 #WAITING PAGE!!!
 class WaitingHandler(BaseHandler):
+    @tornado.web.authenticated
     def get(self):
         user = self.get_current_user()
         if r_server.exists(user + ":jobs"):
@@ -134,6 +146,7 @@ class WaitingHandler(BaseHandler):
         else:
             self.redirect('/')
 
+    @tornado.web.authenticated
     def post(self):
         time = localtime()
         timestamp = '-'.join(map(str,[time.tm_year, time.tm_mon, time.tm_mday,
@@ -149,6 +162,7 @@ class FileHandler(BaseHandler):
     def get(self):
         pass
 
+    @tornado.web.authenticated
     def post(self):
         upfile = self.request.files['file'][0]
         fname = upfile['filename']
@@ -166,6 +180,7 @@ class ShowJobHandler(BaseHandler):
     def get(self):
         pass
 
+    @tornado.web.authenticated
     def post(self):
         job = self.get_argument('job')
         user = self.get_current_user()
@@ -176,8 +191,139 @@ class ShowJobHandler(BaseHandler):
             jobinfo = pgcursor.fetchall()
             self.render("jobinfo.html", user=user, job = job, jobinfo=jobinfo)
         except:
-            print "ERROR: JOB INFO CAN NOT BE RETRIEVED:\n" + SQL
+            raise SyntaxError("ERROR: JOB INFO CAN NOT BE RETRIEVED:\n" + SQL)
 
+
+class MetaAnalysisData():
+    def __init__(self):
+        self.user = ''
+        self.studies = []
+        self.datatypes = []
+        self.metadata = []
+        self.analyses = {}
+        self.options = {}
+
+    def set_user(self, user):
+        self.user = user
+
+    def set_studies(self, studies):
+        self.studies = studies
+
+    def set_datatypes(self, datatypes):
+        self.datatypes = datatypes
+
+    def set_metadata(self, metadata):
+        self.metadata = metadata
+
+    def set_analyses(self, datatype, analyses):
+        self.analyses[datatype] = analyses
+
+    def set_options(self, datatype, analysis, options):
+        self.options[datatype + ':' + analysis] = options
+
+    def get_user(self, user):
+        return self.user
+
+    def get_studies(self):
+        return self.studies
+
+    def get_datatypes(self):
+        return self.datatypes
+
+    def get_metadata(self):
+        return self.metadata
+
+    def get_analyses(self, datatype):
+        if datatype in self.analyses.keys():
+            return self.analyses[datatype]
+        else:
+            raise ValueError('Datatype not part of analysis!')
+
+    def get_options(self, datatype, analysis):
+        if datatype + ':' + analysis in self.options.keys():
+            return self.options[datatype + ':' + analysis]
+        else:
+            raise ValueError('Datatype or analysis passed not part of analysis!')
+
+    def iter_options(self, datatype, analysis):
+        if datatype + ':' + analysis in self.options.keys():
+            optdict = self.options[datatype + ':' + analysis]
+            for opt in optdict:
+                yield opt, optdict[opt]
+        else:
+            raise ValueError('Datatype or analysis passed not part of analysis!')
+
+    def html(self):
+        html = '<table width="100%"><tr><td width="34%""><h3>Studies</h3>'
+        for study in self.get_studies():
+            html += study + "<br />"
+        html += '</td><td width="33%"><h3>Metadata</h3>'
+        for metadata in self.get_metadata():
+            html += metadata + "<br />"
+        html += '</td><td width="33%"><h3>Datatypes</h3>'
+        for datatype in self.get_datatypes():
+            html += datatype + "<br />"
+        html += "</td><tr></table>"
+        html += '<h3>Option Settings</h3>'
+        for datatype in self.get_datatypes():
+            for analysis in self.get_analyses(datatype):
+                html += ''.join(['<table width=32%" style="display: \
+                    inline-block;"><tr><td><b>',datatype,' - ',
+                analysis, '</b></td></tr><tr><td>'])
+                for opt, value in self.iter_options(datatype, analysis):
+                    html += ''.join([opt, ':', str(value), '<br />'])
+                html += '</td></tr></table>'
+        return html
+
+metaAnalysis = MetaAnalysisData()
+
+#ANALYSES and COMBINED set in settings.py
+class MetaAnalysisHandler(BaseHandler):
+    def prepare(self):
+        self.user = self.get_current_user()
+
+    @tornado.web.authenticated
+    def get(self, page):
+        if page != '1':
+            self.write('YOU SHOULD NOT ACCESS THIS PAGE DIRECTLY<br \>')
+            self.write("You requested form page " + page + '<br \>')
+            self.write('<a href="/">Home</a>')
+        else:
+            #global variable that is wiped when you start a new analysis
+            metaAnalysis = MetaAnalysisData()
+            metaAnalysis.set_user(self.user)
+            self.render('meta1.html', user=self.user)
+
+    @tornado.web.authenticated
+    def post(self, page):
+        if page == '1':
+            pass
+        elif page == '2':
+            metaAnalysis.set_studies(self.get_arguments('studiesView'))
+            if  metaAnalysis.get_studies() == []:
+                raise ValueError('ERROR: Need at least one study to analyze.')
+            metaAnalysis.set_metadata(self.get_arguments('metadataUse'))
+            if  metaAnalysis.get_metadata() == []:
+                raise ValueError('ERROR: Need at least one metadata selected.')
+            metaAnalysis.set_datatypes(self.get_arguments('datatypeView'))
+            if  metaAnalysis.get_datatypes() == []:
+                raise ValueError('ERROR: Need at least one datatype selected.')
+            self.render('meta2.html', user=self.user, 
+                datatypes=metaAnalysis.get_datatypes(), single=SINGLE,
+                combined=COMBINED)
+        elif page == '3':
+            for datatype in metaAnalysis.get_datatypes():
+                metaAnalysis.set_analyses(datatype, self.get_arguments(datatype))
+            self.render('meta3.html', user=self.user, analysisinfo=metaAnalysis)
+        elif page == '4':
+            #set options
+            for datatype in metaAnalysis.get_datatypes():
+                for analysis in metaAnalysis.get_analyses(datatype):
+                    metaAnalysis.set_options(datatype, analysis,
+                        {'opt1': 12, 'opt2': 'Nope'})
+            self.render('meta4.html', user=self.user, analysisinfo=metaAnalysis)
+        else:
+            raise NotImplementedError("MetaAnalysis Page "+page+" missing!")
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -190,6 +336,7 @@ class Application(tornado.web.Application):
             (r"/consumer/", MessageHandler),
             (r"/fileupload/", FileHandler),
             (r"/completed/", ShowJobHandler),
+            (r"/meta/([0-9]+)", MetaAnalysisHandler),
         ]
         settings = {
             "template_path": TEMPLATE_PATH,

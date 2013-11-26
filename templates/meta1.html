@@ -1,0 +1,114 @@
+{% extends sitebase.html %}
+{%block head %}
+<script type="text/javascript">
+function listbox_moveacross(sourceID, destID) {
+    var src = document.getElementById(sourceID);
+    var dest = document.getElementById(destID);
+ 
+    for(var count=0; count < src.options.length; count++) {
+ 
+        if(src.options[count].selected == true) {
+                var option = src.options[count];
+ 
+                var newOption = document.createElement("option");
+                newOption.value = option.value;
+                newOption.text = option.text;
+                newOption.selected = true;
+                try {
+                         dest.add(newOption, null); //Standard
+                         src.remove(count, null);
+                 }catch(error) {
+                         dest.add(newOption); // IE only
+                         src.remove(count);
+                 }
+                count--;
+        }
+    }
+}
+</script>
+{% end %}
+
+{%block content %}
+<table width='100%'>
+  <tr>
+    <td width=200>
+      <b>1) Choose studies</b><br />
+      2) Select analyses<br />
+      3) Set analysis options<br />
+      4) Review analysis<br />
+      5) Running analysis<br />
+      6) Analysis results<br />
+    </td>
+    <td>
+    <form action="/meta/2" method="post" id="meta1_form">
+      <p><fieldset>
+        <legend>Select Studies</legend>
+        <label for="studyType">Show Type:</label>
+        <select id="studiesType">
+          <option value="all">All</option>
+          <option value="EMP">EMP</option>
+          <option value="qiime">QIIME</option>
+          <option value="seqs">Contains Seqs</option>
+        </select><br \>
+        <select id="studiesView" name="studiesView" multiple="multiple" style="height:150px;width:300px;">
+          <option value="study1">Study1</option>
+          <option value="study2">Study2</option>
+          <option value="study3">Study3</option>
+          <option value="study4">Study4</option>
+        </select>
+      </fieldset>
+
+      <fieldset>
+        <legend>Data Type</legend>
+        <select id="datatypeView" name="datatypeView" multiple="multiple" style="height:150px;width:300px;">
+          <option value="16s">16s</option>
+          <option value="Shotgun">Shotgun</option>
+          <option value="Metabolomics">Metabolomics</option>
+          <option value="Poo">Poo</option>
+          <option value="Combined">Combined</option>
+        </select>
+      </fieldset></p>
+
+      <p><fieldset>
+        <legend>Available Metadata Fields</legend>
+        <label for="common_fields">Show Common Fields Only:</label>
+        <input id="common_fields" name="common_fields" type="checkbox" /><br />
+        <label for="select_fields1">Select Metadata Fields:</label>
+        <select id="select_fields1">
+          <option value=""></option>
+          <option value="all">All</option>
+          <option value="none">None</option>
+          <option value="inverted">Inverted</option>
+        </select><br />
+        <select id="metadataAll" multiple="multiple" style="height:150px;width:300px;">
+          <option value="m1">m1</option>
+          <option value="m2">m2</option>
+          <option value="m3">m3</option>
+          <option value="m4">m4</option>
+        </select>
+      </fieldset>
+
+      <fieldset style='vertical-align: middle;'>
+        <input id="btnRight" type="button" value=">>>" tabindex="3" onclick='listbox_moveacross("metadataAll", "metadataUse")'><br />
+        <input id="btnLeft" type="button" value="<<<" tabindex="3" onclick='listbox_moveacross("metadataUse", "metadataAll")'>
+      </fieldset>
+
+      <fieldset>
+        <legend>Selected Metadata Fields</legend>
+        &nbsp;<br />
+        <label for="select_fields2">Select Metadata Fields:</label>
+        <select id="select_fields2">
+          <option value=""></option>
+          <option value="all">All</option>
+          <option value="none">None</option>
+          <option value="inverted">Inverted</option>
+        </select><br />
+        <select id="metadataUse" name="metadataUse" multiple="multiple" style="height:150px;width:300px;">
+        </select>
+      </fieldset></p>
+      <input id="continue-btn"type="submit" value="Continue" tabindex="3">
+    </form>
+    </td>
+  <tr>
+</table>
+{% end %}

@@ -264,3 +264,9 @@ div.progress-container > div
   text-align: center;
 }
 /* End progress bar stuff */
+
+fieldset {
+    display:inline;
+    border:none;
+    vertical-align: top
+}

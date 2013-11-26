@@ -15,3 +15,16 @@ console = logging.StreamHandler(sys.stderr)
 import base64
 import uuid
 COOKIE_SECRET = base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
+
+#analyses available in QIIME. Don't forget the options template!
+SINGLE = [
+        'TopiaryExplorer_Visualization',
+        'Heatmap',
+        'Taxonomy_Summary',
+        'Alpha_Diversity',
+        'Beta_Diversity',
+        ]
+COMBINED = [
+        'Mixed1',
+        'Mixed2',
+        ]
