@@ -30,7 +30,7 @@ Start the background daemons for redis-server, postgreSQL, and celery
 >For celery, run the following from the base folder: celery -A app worker
 
 For the postgres database setup, do the following:
->1) Make a database called 'qiime' and user 'defaultuser' with password 'defaultpassword'
+>1) Make a database called 'qiita' and user 'defaultuser' with password 'defaultpassword'
 >
 >2) Add the following table:
 >
