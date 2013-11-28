@@ -39,8 +39,10 @@ class BaseHandler(tornado.web.RequestHandler):
         from traceback import format_exception
         if self.settings.get("debug") and "exc_info" in kwargs:
             exc_info = kwargs["exc_info"]
-            trace_info = ''.join(["%s<br />" % line for line in format_exception(*exc_info)])
-            request_info = ''.join(["<strong>%s</strong>: %s<br />" % (k, self.request.__dict__[k] ) for k in self.request.__dict__.keys()])
+            trace_info = ''.join(["%s<br />" % line for line in \
+                format_exception(*exc_info)])
+            request_info = ''.join(["<strong>%s</strong>: %s<br />" % \
+                (k, self.request.__dict__[k]) for k in self.request.__dict__.keys()])
             error = exc_info[1]
 
             self.render('error.html', error=error, trace_info=trace_info,
@@ -325,6 +327,10 @@ class MetaAnalysisHandler(BaseHandler):
         else:
             raise NotImplementedError("MetaAnalysis Page "+page+" missing!")
 
+class MockupHandler(BaseHandler):
+    def get(self):
+        self.render("mockup.html", user=self.current_user)
+
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
@@ -337,6 +343,7 @@ class Application(tornado.web.Application):
             (r"/fileupload/", FileHandler),
             (r"/completed/", ShowJobHandler),
             (r"/meta/([0-9]+)", MetaAnalysisHandler),
+            (r"/mockup/", MockupHandler),
         ]
         settings = {
             "template_path": TEMPLATE_PATH,
