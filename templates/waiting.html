@@ -1,4 +1,4 @@
-{% extends sitebase.html %}
+{% extends sitebase.html%}
 
 {%block head%}
 <script type="text/javascript">
@@ -7,7 +7,7 @@
         var host = 'ws://' + getBaseURL() + 'consumer/';
         var websocket = new WebSocket(host);
         donecount = 0
-        totaljobs = {{totaljobs}}
+        totalanalyses = {{totalanalyses}}
 
         websocket.onopen = function() {
             websocket.send(JSON.stringify({'msg': 'user:{{user}}'}));
@@ -15,20 +15,17 @@
         websocket.onmessage = function(evt) {
             console.log(evt.data)
             message = JSON.parse(evt.data);
-            if(~message['msg'].indexOf('done')) {
-                websocket.send(evt.data)
-                list = document.getElementById(message.job);
-                list.innerHTML += 'Job Complete<br />';
-                if(++donecount == totaljobs) { window.location.replace("/"); }
-            }
-            else {
-                list = document.getElementById(message.job);
-                list.innerHTML += message.msg + '<br />';
+            if(message.job == '{{job}}') {
+                if(message.done == '1' && ++donecount == totalanalyses) {
+                    websocket.send(evt.data)    
+                    window.location.replace("/");
+                }
+                list = document.getElementById(message.analysis);
+                list.innerHTML = message.msg + '<br />';
                 for(var i=0; i<message.results.length; i++) {
                     list.innerHTML += '<a href="' + getBaseURL() + 
-                        message.results[i] + '">' + message.results[i] + '</a> ';
+                    message.results[i] + '">' + message.results[i] + '</a><br />';
                 }
-                list.innerHTML += '<br />'
             }
         };
         websocket.onerror = function(evt) { };
@@ -45,10 +42,25 @@ function getBaseURL () {
 </script>
 {% end %}
 
-{%block content %}
-    <h1>PLEAAEAAESE WAIT...</h1>  
-    {% for jobname in jobs %}
-        <p><h3>{{jobname}}</h3></p>
-        <div name='{{jobname}}' id='{{jobname}}'></div>
-    {% end %}
+{% block content %}
+<table width='100%'>
+  <tr>
+    <td width=200>
+      1) Choose studies<br />
+      2) Select analyses<br />
+      3) Set analysis options<br />
+      4) Review analysis<br />
+      <b>5) Running analysis</b><br />
+      6) Analysis results<br />
+    </td>
+    <td>
+<h1>Job {{job}}</h1>
+  {% for analysis in analyses %}
+    <p>
+    {{analysis}}: <span id='{{analysis}}' name='{{analysis}}'>Queued</span>
+    </p>
+  {% end %}
+</td></tr></table>
+<div id='error' name='error'></div>
+
 {% end %}

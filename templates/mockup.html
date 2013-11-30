@@ -1,18 +1,66 @@
-{% extends sitebase.html%}
+{% extends sitebase.html%}\
+
+{%block head %}
+{% extends sitebase.html %}
+
+{%block head%}
+<script type="text/javascript">
+
+    function connect() {
+        var host = 'ws://' + getBaseURL() + 'consumer/';
+        var websocket = new WebSocket(host);
+        donecount = 0
+        totalanalyses = {{totalanalyses}}
+
+        websocket.onopen = function() {
+            websocket.send(JSON.stringify({'msg': 'user:{{user}}'}));
+        };
+        websocket.onmessage = function(evt) {
+            console.log(evt.data)
+            message = JSON.parse(evt.data);
+            if(message.job == {{job}})
+            if(message.done == '1') {
+                websocket.send(evt.data)
+                list = document.getElementById(message.analysis);
+                list.innerHTML += msg + '<br />';
+                if(++donecount == totalanalyses) { 
+                    window.location.replace("/"); 
+                }
+            }
+            else {
+                list = document.getElementById(message.analysis);
+                list.innerHTML += message.msg + '<br />';
+                for(var i=0; i<message.results.length; i++) {
+                    list.innerHTML += '<a href="' + getBaseURL() + 
+                        message.results[i] + '">' + message.results[i] + '</a><br />';
+                }
+                list.innerHTML += '<br />'
+            }
+        };
+        websocket.onerror = function(evt) { };
+    };
+
+    window.onload = function() {
+  connect();
+};
+
+function getBaseURL () {
+   return location.hostname + (location.port && ":" + location.port) + "/";
+}
+
+</script>
+{% end %}
 
 {% block content %}
 WAITING PAGE MOCKUP
 <h1>Job [JOBNAME]</h1>
 <p>
 <ul>
-  <li>[16s - OTU Table]: <div id='16s_OTU_Table' style="display: inline">[Completed]<br />
-      <b>Files Generated</b><br />
-      OTU Table: <a href="file1.txt">File1.txt</a><br />
-      Other File: <a href="file1.txt">File1.txt</a>
+  <li>[16s - OTU Table]: <div id='16s:OTU_Table' style="display: inline">Queued</div>
     </div>
-  <li>[16s - Heatmap]: <div id='16s_Heatmap' style="display: inline">[Running]</div>
-  <li>[16s - Alpha Diversity]: <div id='16s_Alpha_Diversity' style="display: inline">[Running]</div>
-  <li>[16s - Beta Diversity]: <div id='16s_Beta_Diversity' style="display: inline">[Running]</div>
+  <li>[16s - Heatmap]: <div id='16s:Heatmap' style="display: inline">Queued</div>
+  <li>[16s - Alpha Diversity]: <div id='16s:Alpha_Diversity' style="display: inline">Queued</div>
+  <li>[16s - Beta Diversity]: <div id='16s:Beta_Diversity' style="display: inline">Queued</div>
 </ul>
 </p>
 

@@ -12,7 +12,7 @@ import tornado.websocket
 from tornado.options import define, options
 from hashlib import sha512
 from settings import *
-from app.tasks import stall_time
+from app.tasks import switchboard
 from push import MessageHandler
 from app.tasks import r_server
 from time import localtime
@@ -141,24 +141,18 @@ class AuthLogoutHandler(BaseHandler):
 class WaitingHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self):
-        user = self.get_current_user()
-        if r_server.exists(user + ":jobs"):
-            jobs=r_server.lrange(user + ":jobs", 0, -1)
-            self.render("waiting.html", user=user, jobs=jobs, totaljobs=len(jobs))
-        else:
-            self.redirect('/')
+        self.write("YOU SHOULD NOT BE HERE. HERE THERE BE DRAGONS.")
 
     @tornado.web.authenticated
     def post(self):
-        time = localtime()
-        timestamp = '-'.join(map(str,[time.tm_year, time.tm_mon, time.tm_mday,
-            time.tm_hour, time.tm_min, time.tm_sec]))
         user = self.get_current_user()
-        r_server.rpush(user + ":jobs", timestamp)
-        jobs=r_server.lrange(user + ":jobs", 0, -1)
-        self.render("waiting.html", user=user, jobs=jobs, totaljobs=len(jobs))
+        r_server.rpush(user + ":jobs", metaAnalysis.get_job())
+        analyses = metaAnalysis.options.keys()
+        analyses.sort()
+        self.render("waiting.html", user=user, job=metaAnalysis.get_job(), 
+            totalanalyses=len(metaAnalysis.options), analyses=analyses)
         #MUST CALL CELERY AFTER PAGE CALL!
-        stall_time.delay(user, timestamp, 3)
+        switchboard.delay(user, metaAnalysis.get_job(), metaAnalysis.options)
 
 class FileHandler(BaseHandler):
     def get(self):
@@ -199,32 +193,45 @@ class ShowJobHandler(BaseHandler):
 class MetaAnalysisData():
     def __init__(self):
         self.user = ''
+        self.job = ''
         self.studies = []
         self.datatypes = []
         self.metadata = []
         self.analyses = {}
         self.options = {}
 
+    #tornado sends form data in unicode, convert to ascii for ease of use
     def set_user(self, user):
-        self.user = user
+        self.user = user.encode('ascii')
+
+    def set_job(self, job):
+        if job == '':
+            time = localtime()
+            self.job = '-'.join(map(str,[time.tm_year, time.tm_mon, time.tm_mday,
+                time.tm_hour, time.tm_min, time.tm_sec]))
+        else:
+            self.job = job.encode('ascii')
 
     def set_studies(self, studies):
-        self.studies = studies
+        self.studies = [study.encode('ascii') for study in studies]
 
     def set_datatypes(self, datatypes):
-        self.datatypes = datatypes
+        self.datatypes = [datatype.encode('ascii') for datatype in datatypes]
 
     def set_metadata(self, metadata):
-        self.metadata = metadata
+        self.metadata = [m.encode('ascii') for m in metadata]
 
     def set_analyses(self, datatype, analyses):
-        self.analyses[datatype] = analyses
+        self.analyses[datatype] = [a.encode('ascii') for a in analyses]
 
     def set_options(self, datatype, analysis, options):
         self.options[datatype + ':' + analysis] = options
 
-    def get_user(self, user):
+    def get_user(self):
         return self.user
+
+    def get_job(self):
+        return self.job
 
     def get_studies(self):
         return self.studies
@@ -301,6 +308,7 @@ class MetaAnalysisHandler(BaseHandler):
         if page == '1':
             pass
         elif page == '2':
+            metaAnalysis.set_job(self.get_argument('jobname'))
             metaAnalysis.set_studies(self.get_arguments('studiesView'))
             if  metaAnalysis.get_studies() == []:
                 raise ValueError('ERROR: Need at least one study to analyze.')

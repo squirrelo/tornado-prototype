@@ -38,7 +38,7 @@ class MessageHandler(WebSocketHandler):
             self.channel = msginfo['msg'].split(':')[1]
             #need to split the rest off to new func so it can be asynchronous
             self.listen()
-        if "done" in msginfo['msg']:
+        elif msginfo['done']:
             #handshake the done to avoid lock if job finishes before page loads
             self.completed_job(msginfo)
 

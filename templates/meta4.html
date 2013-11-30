@@ -14,6 +14,10 @@
     <td>
       <h1>Review Meta-analysis</h1>
       {% raw analysisinfo.html() %}
+      <p><form action="/waiting/" method="post" id="job_form">
+    <input type='hidden' id = 'channel' name='channel' value='{{user}}'>
+    <input id="run-btn" class="btn btn-blue" type="submit" value="Run Job" tabindex="3">
+</form></p>
     </td>
   <tr>
 </table>
