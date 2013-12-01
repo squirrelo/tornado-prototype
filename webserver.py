@@ -144,7 +144,7 @@ class WaitingHandler(BaseHandler):
         self.write("YOU SHOULD NOT BE HERE. HERE THERE BE DRAGONS.")
 
     @tornado.web.authenticated
-    def post(self):
+    def post(self, page):
         user = self.get_current_user()
         r_server.rpush(user + ":jobs", metaAnalysis.get_job())
         analyses = metaAnalysis.options.keys()

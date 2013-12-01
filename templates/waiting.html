@@ -18,7 +18,7 @@
             if(message.job == '{{job}}') {
                 if(message.done == '1' && ++donecount == totalanalyses) {
                     websocket.send(evt.data)    
-                    window.location.replace("/");
+                    window.location.replace("/completed/{{job}}");
                 }
                 list = document.getElementById(message.analysis);
                 list.innerHTML = message.msg + '<br />';
