@@ -31,7 +31,7 @@ class BaseHandler(tornado.web.RequestHandler):
     def get_current_user(self):
         user = self.get_secure_cookie("user")
         if user == None:
-            return ''
+            self.clear_cookie("user")
         else:
             return user.strip('" ')
 
@@ -140,7 +140,7 @@ class AuthLogoutHandler(BaseHandler):
 #WAITING PAGE!!!
 class WaitingHandler(BaseHandler):
     @tornado.web.authenticated
-    def get(self):
+    def get(self, page):
         self.write("YOU SHOULD NOT BE HERE. HERE THERE BE DRAGONS.")
 
     @tornado.web.authenticated
@@ -172,12 +172,23 @@ class FileHandler(BaseHandler):
         output_file.close()
         self.redirect("/")
 
+#Completed job info page
 class ShowJobHandler(BaseHandler):
-    def get(self):
-        pass
+    @tornado.web.authenticated
+    def get(self, job):
+        user = self.get_current_user()
+        SQL = "SELECT * FROM completed_jobs WHERE username ='%s' and job = '%s'"\
+         % (user, job)
+        try:
+            pgcursor.execute(SQL)
+            jobinfo = pgcursor.fetchall()
+            self.render("jobinfo.html", user=user, job = job, jobinfo=jobinfo)
+        except:
+            raise SyntaxError("ERROR: JOB INFO CAN NOT BE RETRIEVED:\n" + SQL)
+
 
     @tornado.web.authenticated
-    def post(self):
+    def post(self, page):
         job = self.get_argument('job')
         user = self.get_current_user()
         SQL = "SELECT * FROM completed_jobs WHERE username ='%s' and job = '%s'"\
@@ -346,10 +357,10 @@ class Application(tornado.web.Application):
             (r"/auth/login/", AuthLoginHandler),
             (r"/auth/logout/", AuthLogoutHandler),
             (r"/auth/create/", AuthCreateHandler),
-            (r"/waiting/", WaitingHandler),
+            (r"/waiting/(.*)", WaitingHandler),
             (r"/consumer/", MessageHandler),
             (r"/fileupload/", FileHandler),
-            (r"/completed/", ShowJobHandler),
+            (r"/completed/(.*)", ShowJobHandler),
             (r"/meta/([0-9]+)", MetaAnalysisHandler),
             (r"/mockup/", MockupHandler),
         ]
