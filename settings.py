@@ -25,6 +25,6 @@ SINGLE = [
         'Beta_Diversity',
         ]
 COMBINED = [
-        'Mixed1',
-        'Mixed2',
+        'Procrustes',
+        'Network_Analysis',
         ]

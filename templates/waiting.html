@@ -21,6 +21,15 @@
                     window.location.replace("/completed/{{job}}");
                 }
                 list = document.getElementById(message.analysis);
+                if(message.msg.indexOf("Running") != -1) {
+                  list.style.color="Blue";
+                }
+                else if(message.msg.indexOf("Complete") != -1) {
+                  list.style.color="Green";
+                }
+                else if(message.msg.indexOf("ERROR") != -1) {
+                  list.style.color="RED"; 
+                }
                 list.innerHTML = message.msg + '<br />';
                 for(var i=0; i<message.results.length; i++) {
                     list.innerHTML += '<a href="' + getBaseURL() + 
