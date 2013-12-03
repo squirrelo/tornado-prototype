@@ -66,10 +66,10 @@ function getBaseURL () {
 <h1>Job {{job}}</h1>
   {% for analysis in analyses %}
     <p>
-    {{analysis}}: <span id='{{analysis}}' name='{{analysis}}'>Queued</span>
+    {{analysis}}: <span id='{{analysis}}'>Queued</span>
     </p>
   {% end %}
 </td></tr></table>
-<div id='error' name='error'></div>
+<div id='error'></div>
 
 {% end %}

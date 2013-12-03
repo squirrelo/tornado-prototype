@@ -20,7 +20,6 @@
           {% for analysis in analysisinfo.get_analyses(type) %}
             {% module Template('meta_opts/'+analysis+'.html', type=type) %}
           {% end %}
-        </select>
       </fieldset>
       {% end %}
       <p>
@@ -29,6 +28,6 @@
       </p>
     </form>
     </td>
-  <tr>
+  </tr>
 </table>
 {% end %}

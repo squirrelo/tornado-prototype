@@ -50,13 +50,13 @@ class MessageHandler(WebSocketHandler):
         SQL = "INSERT INTO completed_jobs (username, job, msg, files) VALUES "
         for json in r_server.lrange(self.channel + ":messages", 0, -1):
             jsoninfo = loads(json)
-            if jsoninfo['job'] == job: 
+            if jsoninfo['job'] == job:
                 r_server.lrem(self.channel + ":messages", 0, json)
-                if jsoninfo['msg'] != 'done':
+                if jsoninfo['done'] == '1':
                     #reformat results to SQL insert format
                     res = '{' + ','.join(jsoninfo['results']) + '}'
                     SQL += "('%s','%s','%s','%s')," % (self.get_current_user(),
-                        job, jsoninfo['msg'], res)
+                        job, jsoninfo['analysis'].replace(':', ' - '), res)
         try:
             self.pgcursor.execute(SQL[:-1])
             self.postgres.commit()

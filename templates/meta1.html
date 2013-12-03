@@ -41,10 +41,12 @@ function listbox_moveacross(sourceID, destID) {
     </td>
     <td>
     <form action="/meta/2" method="post" id="meta1_form">
-      <p><fieldset>
-        <legend='Job Name'></legend>
-        <input type='textbox' id='jobname' name='jobname'>
-      </fieldset></p>
+      <p>
+        <fieldset>
+          <legend>Job Name</legend>
+          <input type='textbox' id='jobname' name='jobname'>
+        </fieldset>
+      </p>
       <p><fieldset>
         <legend>Select Studies</legend>
         <label for="studyType">Show Type:</label>
@@ -53,16 +55,16 @@ function listbox_moveacross(sourceID, destID) {
           <option value="EMP">EMP</option>
           <option value="qiime">QIIME</option>
           <option value="seqs">Contains Seqs</option>
-        </select><br \>
+        </select><br />
         <select id="studiesView" name="studiesView" multiple="multiple" style="height:150px;width:300px;">
           <option value="study1">Study1</option>
           <option value="study2">Study2</option>
           <option value="study3">Study3</option>
           <option value="study4">Study4</option>
         </select>
-      </fieldset>
+      </fieldset></p>
 
-      <fieldset>
+      <p><fieldset>
         <legend>Data Type</legend>
         <select id="datatypeView" name="datatypeView" multiple="multiple" style="height:150px;width:300px;">
           <option value="16s">16s</option>
@@ -113,6 +115,6 @@ function listbox_moveacross(sourceID, destID) {
       <input id="continue-btn"type="submit" value="Continue" tabindex="3">
     </form>
     </td>
-  <tr>
+  </tr>
 </table>
 {% end %}
