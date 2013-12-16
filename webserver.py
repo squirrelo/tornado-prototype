@@ -36,6 +36,7 @@ metaAnalysis = MetaAnalysisData()
 
 class BaseHandler(tornado.web.RequestHandler):
     def get_current_user(self):
+        '''Overrides default method of returning user curently connected'''
         user = self.get_secure_cookie("user")
         if user == None:
             self.clear_cookie("user")
@@ -44,6 +45,7 @@ class BaseHandler(tornado.web.RequestHandler):
             return user.strip('" ')
 
     def write_error(self, status_code, **kwargs):
+        '''Overrides the error page created by Tornado'''
         from traceback import format_exception
         if self.settings.get("debug") and "exc_info" in kwargs:
             exc_info = kwargs["exc_info"]
@@ -57,6 +59,7 @@ class BaseHandler(tornado.web.RequestHandler):
                 request_info=request_info, user=self.get_current_user())
 
 class MainHandler(BaseHandler):
+    '''Index page'''
     @tornado.web.authenticated
     def get(self):
         username = self.current_user
@@ -72,6 +75,7 @@ class MainHandler(BaseHandler):
 
 
 class AuthCreateHandler(BaseHandler):
+    '''User Creation'''
     def get(self):
         try:
             errormessage = self.get_argument("error")
@@ -96,6 +100,7 @@ class AuthCreateHandler(BaseHandler):
         if password == sha512("").hexdigest():
             return False, "No password given!"
         try:
+            #heck to make sure user does not already exist
             SQL = "SELECT * FROM site_users WHERE username = %s"
             pgcursor = postgres.cursor()
             pgcursor.execute(SQL, (username,))
@@ -107,6 +112,7 @@ class AuthCreateHandler(BaseHandler):
         try:
             # THIS IS THE ONLY PLACE THAT SHOULD MODIFY THE DB IN THIS CODE!
             #ALL OTHERS GO THROUGH THE MIDDLEWARE!!!!!
+            #THIS PROBABLY SHOULD BE MIDDLEWARE TOO!
             SQL = "INSERT INTO site_users (username, password) VALUES (%s, %s)"
             pgcursor.execute(SQL, (username, password))
             postgres.commit()
@@ -118,6 +124,7 @@ class AuthCreateHandler(BaseHandler):
 
 
 class AuthLoginHandler(BaseHandler):
+    '''Login Page'''
     def get(self):
         try:
             errormessage = self.get_argument("error")
@@ -158,12 +165,13 @@ class AuthLoginHandler(BaseHandler):
             self.clear_cookie("user")
 
 class AuthLogoutHandler(BaseHandler):
+    '''Logout handler, no page necessary'''
     def get(self):
         self.clear_cookie("user")
         self.redirect("/")
         
-#WAITING PAGE!!!
 class WaitingHandler(BaseHandler):
+    '''Waiting Page'''
     @tornado.web.authenticated
     def get(self, job):
         username = self.get_current_user()
@@ -183,6 +191,7 @@ class WaitingHandler(BaseHandler):
             self.render("waiting.html", user=user, job=job, analyses=analyses)
 
     @tornado.web.authenticated
+    #This post function takes care of actual job submission
     def post(self, page):
         user = self.get_current_user()
         r_server.rpush(user + ":jobs", metaAnalysis.get_job())
@@ -194,6 +203,7 @@ class WaitingHandler(BaseHandler):
         switchboard.delay(user, metaAnalysis)
 
 class FileHandler(BaseHandler):
+    '''File upload handler'''
     def get(self):
         pass
 
@@ -211,8 +221,8 @@ class FileHandler(BaseHandler):
         output_file.close()
         self.redirect("/")
 
-#Completed job info page
 class ShowJobHandler(BaseHandler):
+    '''Completed job page'''
     @tornado.web.authenticated
     def get(self, job):
         user = self.get_current_user()
@@ -224,6 +234,7 @@ class ShowJobHandler(BaseHandler):
             pgcursor = postgres.cursor(cursor_factory=DictCursor)
             pgcursor.execute(SQL)
             jobinfo = pgcursor.fetchall()
+            pgcursor.close()
             self.render("jobinfo.html", user=user, job = job, jobinfo=jobinfo)
         except Exception, e:
             raise SyntaxError("ERROR:JOB INFO CAN'T BE RETRIEVED:\n"+e+"\n"+SQL)
@@ -256,7 +267,7 @@ class DeleteJobHandler(BaseHandler):
         self.redirect('/')
 
 
-#ANALYSES and COMBINED set in settings.py
+#ANALYSES and COMBINED lists are set in settings.py
 class MetaAnalysisHandler(BaseHandler):
     def prepare(self):
         self.user = self.get_current_user()

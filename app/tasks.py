@@ -28,6 +28,7 @@ def push_notification(user, job, analysis, msg, files=[], done=False):
 
 
 def finish_job(user, jobname, jobid, results):
+    #wipe out all messages from redis list so no longer pushed to user
     for message in r_server.lrange(user+':messages', 0, -1):
         if '"job": "'+jobname in str(message):
             r_server.lrem(user+':messages', message)
@@ -41,11 +42,11 @@ def finish_job(user, jobname, jobid, results):
         postgres.rollback()
         raise Exception("Can't finish off job!\n"+str(e)+\
             "\n"+SQL)
-    #update all analyses in analysis table
-    #convert list to SQL formatted list
+    #convert list of files to SQL formatted list
     for result in results:
         result[0] = "{"+','.join(result[0])+"}"
         result.append(str(jobid))
+    #update all analyses in analysis table to done and with their results
     SQL = "UPDATE meta_analysis_analyses SET done = true, results = %s  WHERE \
     datatype = %s AND analysis = %s AND job = %s"
     try:
@@ -57,6 +58,7 @@ def finish_job(user, jobname, jobid, results):
         for result in results:
             print SQL % result
         raise Exception("Can't finish off job!\n"+str(e)+"\n")
+    #finally, push finisjed state
     push_notification(user, jobname, 'done', 'allcomplete')
 
 
