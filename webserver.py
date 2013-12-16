@@ -39,7 +39,7 @@ class BaseHandler(tornado.web.RequestHandler):
         user = self.get_secure_cookie("user")
         if user == None:
             self.clear_cookie("user")
-            return None
+            return ''
         else:
             return user.strip('" ')
 
