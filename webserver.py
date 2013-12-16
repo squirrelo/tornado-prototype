@@ -39,6 +39,7 @@ class BaseHandler(tornado.web.RequestHandler):
         user = self.get_secure_cookie("user")
         if user == None:
             self.clear_cookie("user")
+            return None
         else:
             return user.strip('" ')
 
@@ -76,12 +77,13 @@ class AuthCreateHandler(BaseHandler):
             errormessage = self.get_argument("error")
         except:
             errormessage = ""
-        self.render("create.html", user=self.current_user, errormessage = errormessage)
+        self.render("create.html", user=self.get_current_user(), 
+            errormessage = errormessage)
 
     def post(self):
         username = self.get_argument("username", "")
         created, error = self.create_user(username, 
-            sha512(self.get_argument("password", "")).digest())
+            sha512(self.get_argument("password", "")).hexdigest())
         if created:
             self.redirect(self.get_argument("next", u"/"))
         else:
@@ -91,17 +93,28 @@ class AuthCreateHandler(BaseHandler):
     def create_user(self, username, password):
         if username == "":
             return False, "No username given!"
-        if password == sha512("").digest():
+        if password == sha512("").hexdigest():
             return False, "No password given!"
-        userkey = "user:" + username
-        exists = r_server.get("user:"+username)
-        if exists:
+        try:
+            SQL = "SELECT * FROM site_users WHERE username = %s"
+            pgcursor = postgres.cursor()
+            pgcursor.execute(SQL, (username,))
+            exists = pgcursor.fetchall()
+        except Exception, e:
+            return False, "Database query error! " + str(e)
+        if exists != []:
             return False, "Username already exists!"
-        setstatus = r_server.set(userkey, password)
-        if setstatus:
+        try:
+            # THIS IS THE ONLY PLACE THAT SHOULD MODIFY THE DB IN THIS CODE!
+            #ALL OTHERS GO THROUGH THE MIDDLEWARE!!!!!
+            SQL = "INSERT INTO site_users (username, password) VALUES (%s, %s)"
+            pgcursor.execute(SQL, (username, password))
+            postgres.commit()
+            pgcursor.close()
             return True, ""
-        else:
-            return False, "Database set error!"
+        except Exception, e:
+            postgres.rollback()
+            return False, "Database set error! " + str(e)
 
 
 class AuthLoginHandler(BaseHandler):
@@ -110,11 +123,17 @@ class AuthLoginHandler(BaseHandler):
             errormessage = self.get_argument("error")
         except:
             errormessage = ""
-        self.render("login.html", user=self.current_user, errormessage = errormessage)
+        self.render("login.html", user=self.get_current_user(),
+            errormessage = errormessage)
 
     def check_permission(self, username, password):
-        dbpass = r_server.get("user:"+username)
-        if dbpass == False:
+        try:
+            SQL = "SELECT password from site_users WHERE username = %s"
+            pgcursor = postgres.cursor()
+            pgcursor.execute(SQL, (username,))
+            dbpass = pgcursor.fetchone()[0]
+            pgcursor.close()
+        except:
             return False
         if password == dbpass:
             return True
@@ -124,7 +143,7 @@ class AuthLoginHandler(BaseHandler):
     def post(self):
         username = self.get_argument("username", "")
         auth = self.check_permission(username,
-            sha512(self.get_argument("password", "")).digest())
+            sha512(self.get_argument("password", "")).hexdigest())
         if auth:
             self.set_current_user(username)
             self.redirect(self.get_argument("next", u"/"))
@@ -147,7 +166,7 @@ class AuthLogoutHandler(BaseHandler):
 class WaitingHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self, job):
-        user = self.get_current_user()
+        username = self.get_current_user()
         SQL = "SELECT done FROM meta_analysis_jobs WHERE username = '%s' AND \
         job = '%s'" % username, job
         try:

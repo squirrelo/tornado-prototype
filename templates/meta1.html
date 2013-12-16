@@ -49,13 +49,15 @@ function listbox_moveacross(sourceID, destID) {
       </p>
       <p><fieldset>
         <legend>Select Studies</legend>
-        <label for="studyType">Show Type:</label>
+        <label for="studyType">Search:</label>
         <select id="studiesType">
           <option value="all">All</option>
-          <option value="EMP">EMP</option>
-          <option value="qiime">QIIME</option>
-          <option value="seqs">Contains Seqs</option>
-        </select><br />
+          <option value="EMP">Metadata</option>
+          <option value="qiime">Study Name</option>
+          <option value="seqs">Other Thing</option>
+        </select>
+        <input type="textbox" id="searchstudy">
+        <br />
         <select id="studiesView" name="studiesView" multiple="multiple" style="height:150px;width:300px;">
           <option value="study1">Study1</option>
           <option value="study2">Study2</option>
