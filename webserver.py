@@ -12,20 +12,27 @@ import tornado.websocket
 from tornado.options import define, options
 from hashlib import sha512
 from settings import *
-from app.tasks import switchboard
+from app.tasks import switchboard, delete_job
 from push import MessageHandler
-from app.tasks import r_server
-from time import localtime
+from app.utils import MetaAnalysisData
+from redis import Redis
 from psycopg2 import connect as pg_connect
 from psycopg2.extras import DictCursor
 
-define("port", default=8888, help="run on the given port", type=int)
 try:
     postgres=pg_connect("dbname='qiita' user='defaultuser' \
         password='defaultpassword' host='localhost'")
-    pgcursor = postgres.cursor(cursor_factory=DictCursor)
 except:
-    raise RuntimeError("ERROR: unable to connect to the Postgres database.")
+    raise RuntimeError("ERROR: unable to connect to the POSTGRES database.")
+
+try:
+    r_server = Redis(host='localhost')
+except:
+    raise RuntimeError("ERROR: unable to connect to the REDIS database.")
+
+define("port", default=8888, help="run on the given port", type=int)
+
+metaAnalysis = MetaAnalysisData()
 
 class BaseHandler(tornado.web.RequestHandler):
     def get_current_user(self):
@@ -53,15 +60,14 @@ class MainHandler(BaseHandler):
     def get(self):
         username = self.current_user
         username = username.strip('" ')
-        SQL = "SELECT DISTINCT job FROM completed_jobs WHERE username = '%s'"\
-            % username
+        SQL = "SELECT DISTINCT job, id FROM meta_analysis_jobs WHERE username = '%s'\
+        AND done = true ORDER BY job" % username
+        pgcursor = postgres.cursor(cursor_factory=DictCursor)
         pgcursor.execute(SQL)
         completedjobs = pgcursor.fetchall()
         if completedjobs == None:
-            cjobs = []
-        else:
-            cjobs = [job[0] for job in completedjobs]
-        self.render("index.html", user=username, jobs=cjobs)
+            completedjobs = []
+        self.render("index.html", user=username, jobs=completedjobs)
 
 
 class AuthCreateHandler(BaseHandler):
@@ -140,8 +146,22 @@ class AuthLogoutHandler(BaseHandler):
 #WAITING PAGE!!!
 class WaitingHandler(BaseHandler):
     @tornado.web.authenticated
-    def get(self, page):
-        self.write("YOU SHOULD NOT BE HERE. HERE THERE BE DRAGONS.")
+    def get(self, job):
+        user = self.get_current_user()
+        SQL = "SELECT done FROM meta_analysis_jobs WHERE username = '%s' AND \
+        job = '%s'" % username, job
+        try:
+            pgcursor = postgres.cursor(cursor_factory=DictCursor)
+            pgcursor.execute(SQL)
+            jobdone = bool(pgcursor.fetchone()[0])
+        except:
+            raise SyntaxError("ERROR: JOB INFO CAN NOT BE RETRIEVED:\n" + SQL)
+        if jobdone:
+            self.redirect('/completed/'+job)
+        else:
+            pass
+            #NEED TO DO SQL QUERY TO GET analyses
+            self.render("waiting.html", user=user, job=job, analyses=analyses)
 
     @tornado.web.authenticated
     def post(self, page):
@@ -150,9 +170,9 @@ class WaitingHandler(BaseHandler):
         analyses = metaAnalysis.options.keys()
         analyses.sort()
         self.render("waiting.html", user=user, job=metaAnalysis.get_job(), 
-            totalanalyses=len(metaAnalysis.options), analyses=analyses)
+            analyses=analyses)
         #MUST CALL CELERY AFTER PAGE CALL!
-        switchboard.delay(user, metaAnalysis.get_job(), metaAnalysis.options)
+        switchboard.delay(user, metaAnalysis)
 
 class FileHandler(BaseHandler):
     def get(self):
@@ -177,125 +197,45 @@ class ShowJobHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self, job):
         user = self.get_current_user()
-        SQL = "SELECT * FROM completed_jobs WHERE username ='%s' and job = '%s'"\
+
+        SQL = "SELECT * FROM meta_analysis_analyses WHERE EXISTS (SELECT id \
+            FROM meta_analysis_jobs WHERE username ='%s' and job = '%s')"\
          % (user, job)
         try:
+            pgcursor = postgres.cursor(cursor_factory=DictCursor)
             pgcursor.execute(SQL)
             jobinfo = pgcursor.fetchall()
             self.render("jobinfo.html", user=user, job = job, jobinfo=jobinfo)
-        except:
-            raise SyntaxError("ERROR: JOB INFO CAN NOT BE RETRIEVED:\n" + SQL)
+        except Exception, e:
+            raise SyntaxError("ERROR:JOB INFO CAN'T BE RETRIEVED:\n"+e+"\n"+SQL)
 
 
     @tornado.web.authenticated
     def post(self, page):
         job = self.get_argument('job')
         user = self.get_current_user()
-        SQL = "SELECT * FROM completed_jobs WHERE username ='%s' and job = '%s'"\
-         % (user,job)
+        SQL = "SELECT * FROM meta_analysis_analyses WHERE EXISTS (SELECT id \
+            FROM meta_analysis_jobs WHERE username ='%s' and job = '%s') ORDER\
+            BY datatype"\
+         % (user, job)
         try:
+            pgcursor = postgres.cursor(cursor_factory=DictCursor)
             pgcursor.execute(SQL)
             jobinfo = pgcursor.fetchall()
-            self.render("jobinfo.html", user=user, job = job, jobinfo=jobinfo)
+            pgcursor.close()
         except:
+            postgres.rollback()
             raise SyntaxError("ERROR: JOB INFO CAN NOT BE RETRIEVED:\n" + SQL)
+        self.render("jobinfo.html", user=user, job = job, jobinfo=jobinfo)
 
+class DeleteJobHandler(BaseHandler):
+    @tornado.web.authenticated
+    def post(self):
+        user = self.get_current_user()
+        jobid = self.get_argument('jobid')
+        delete_job.delay(user, jobid)
+        self.redirect('/')
 
-class MetaAnalysisData():
-    def __init__(self):
-        self.user = ''
-        self.job = ''
-        self.studies = []
-        self.datatypes = []
-        self.metadata = []
-        self.analyses = {}
-        self.options = {}
-
-    #tornado sends form data in unicode, convert to ascii for ease of use
-    def set_user(self, user):
-        self.user = user.encode('ascii')
-
-    def set_job(self, job):
-        if job == '':
-            time = localtime()
-            self.job = '-'.join(map(str,[time.tm_year, time.tm_mon, time.tm_mday,
-                time.tm_hour, time.tm_min, time.tm_sec]))
-        else:
-            self.job = job.encode('ascii')
-
-    def set_studies(self, studies):
-        self.studies = [study.encode('ascii') for study in studies]
-
-    def set_datatypes(self, datatypes):
-        self.datatypes = [datatype.encode('ascii') for datatype in datatypes]
-
-    def set_metadata(self, metadata):
-        self.metadata = [m.encode('ascii') for m in metadata]
-
-    def set_analyses(self, datatype, analyses):
-        self.analyses[datatype] = [a.encode('ascii') for a in analyses]
-
-    def set_options(self, datatype, analysis, options):
-        self.options[datatype + ':' + analysis] = options
-
-    def get_user(self):
-        return self.user
-
-    def get_job(self):
-        return self.job
-
-    def get_studies(self):
-        return self.studies
-
-    def get_datatypes(self):
-        return self.datatypes
-
-    def get_metadata(self):
-        return self.metadata
-
-    def get_analyses(self, datatype):
-        if datatype in self.analyses.keys():
-            return self.analyses[datatype]
-        else:
-            raise ValueError('Datatype not part of analysis!')
-
-    def get_options(self, datatype, analysis):
-        if datatype + ':' + analysis in self.options.keys():
-            return self.options[datatype + ':' + analysis]
-        else:
-            raise ValueError('Datatype or analysis passed not part of analysis!')
-
-    def iter_options(self, datatype, analysis):
-        if datatype + ':' + analysis in self.options.keys():
-            optdict = self.options[datatype + ':' + analysis]
-            for opt in optdict:
-                yield opt, optdict[opt]
-        else:
-            raise ValueError('Datatype or analysis passed not part of analysis!')
-
-    def html(self):
-        html = '<table width="100%"><tr><td width="34%""><h3>Studies</h3>'
-        for study in self.get_studies():
-            html += study + "<br />"
-        html += '</td><td width="33%"><h3>Metadata</h3>'
-        for metadata in self.get_metadata():
-            html += metadata + "<br />"
-        html += '</td><td width="33%"><h3>Datatypes</h3>'
-        for datatype in self.get_datatypes():
-            html += datatype + "<br />"
-        html += "</td><tr></table>"
-        html += '<h3>Option Settings</h3>'
-        for datatype in self.get_datatypes():
-            for analysis in self.get_analyses(datatype):
-                html += ''.join(['<table width=32%" style="display: \
-                    inline-block;"><tr><td><b>',datatype,' - ',
-                analysis, '</b></td></tr><tr><td>'])
-                for opt, value in self.iter_options(datatype, analysis):
-                    html += ''.join([opt, ':', str(value), '<br />'])
-                html += '</td></tr></table>'
-        return html
-
-metaAnalysis = MetaAnalysisData()
 
 #ANALYSES and COMBINED set in settings.py
 class MetaAnalysisHandler(BaseHandler):
@@ -362,6 +302,7 @@ class Application(tornado.web.Application):
             (r"/fileupload/", FileHandler),
             (r"/completed/(.*)", ShowJobHandler),
             (r"/meta/([0-9]+)", MetaAnalysisHandler),
+            (r"/del/", DeleteJobHandler),
             (r"/mockup/", MockupHandler),
         ]
         settings = {

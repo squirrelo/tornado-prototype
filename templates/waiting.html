@@ -6,8 +6,7 @@
     function connect() {
         var host = 'ws://' + getBaseURL() + 'consumer/';
         var websocket = new WebSocket(host);
-        donecount = 0
-        totalanalyses = {{totalanalyses}}
+        noerror = true;
 
         websocket.onopen = function() {
             websocket.send(JSON.stringify({'msg': 'user:{{user}}'}));
@@ -16,19 +15,19 @@
             console.log(evt.data)
             message = JSON.parse(evt.data);
             if(message.job == '{{job}}') {
-                if(message.done == '1' && ++donecount == totalanalyses) {
-                    websocket.send(evt.data)    
+                if(noerror && message.msg == 'allcomplete') { 
                     window.location.replace("/completed/{{job}}");
                 }
                 list = document.getElementById(message.analysis);
-                if(message.msg.indexOf("Running") != -1) {
-                  list.style.color="Blue";
+                if(message.msg.indexOf("ERROR") != -1) {
+                  list.style.color="Red";
+                  noerror=false;
                 }
-                else if(message.msg.indexOf("Complete") != -1) {
+                else if(message.done == '1') {
                   list.style.color="Green";
                 }
-                else if(message.msg.indexOf("ERROR") != -1) {
-                  list.style.color="RED"; 
+                else {
+                  list.style.color="Blue"; 
                 }
                 list.innerHTML = message.msg + '<br />';
                 for(var i=0; i<message.results.length; i++) {

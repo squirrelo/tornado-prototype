@@ -2,9 +2,15 @@
 {%block content %}
     <h1>JOB {{job}}</h1>  
     {% for jobstep in jobinfo %}
-        {{jobstep['msg']}}<br />
-        {% for file in jobstep['files'] %}
-        <a href="{{file}}">{{file}}</a> 
+        {{jobstep['datatype']}} - {{jobstep['analysis']}}<br />
+        {% if jobstep['error'] %}
+        <span color='Red'>JOB FINISHED WITH ERROR!</span>
+        {% else %}
+            {% if jobstep['results'] != None %}
+                {% for file in jobstep['results'] %}
+                <a href="{{file}}">{{file}}</a> 
+                {% end %}
+            {% end %}
         {% end %}
         <br \>
     {% end %}

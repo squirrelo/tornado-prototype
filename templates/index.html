@@ -3,11 +3,20 @@
  <h3>Completed jobs selection and review test</h3>
     <form action="/completed/" method="post" id='done_form' name='done_form'>
     <select name='job' id='job' form='done_form' required>
-    {% for jobname in jobs %}
-        <option>{{jobname}}</option>
+    {% for job in jobs %}
+        <option>{{job[0]}}</option>
     {% end %}
     </select>
     <input id="run-btn" class="btn btn-blue" type="submit" value="Get Job" tabindex="3">
+</form>
+<h3>Delete jobs test</h3>
+    <form action="/del/" method="post" id='del_form'>
+    <select name='jobid' id='jobid' form='del_form' required>
+    {% for job in jobs %}
+        <option value='{{job[1]}}'>{{job[0]}}</option>
+    {% end %}
+    </select>
+    <input id="run-btn" class="btn btn-blue" type="submit" value="Del Job" tabindex="3">
 </form>
     <h3>File Upload Test</h3>
     <form enctype="multipart/form-data" action="/fileupload/" method="post">
