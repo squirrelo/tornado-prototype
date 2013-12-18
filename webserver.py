@@ -175,20 +175,31 @@ class WaitingHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self, job):
         username = self.get_current_user()
-        SQL = "SELECT done FROM meta_analysis_jobs WHERE username = '%s' AND \
-        job = '%s'" % username, job
+        SQL = "SELECT done, id FROM meta_analysis_jobs WHERE username = %s AND \
+        job = %s"
         try:
             pgcursor = postgres.cursor(cursor_factory=DictCursor)
-            pgcursor.execute(SQL)
-            jobdone = bool(pgcursor.fetchone()[0])
+            pgcursor.execute(SQL, (username, job))
+            jobhold = pgcursor.fetchone()
+            jobdone = bool(jobhold[0])
+            jobid = jobhold[1]
         except:
             raise SyntaxError("ERROR: JOB INFO CAN NOT BE RETRIEVED:\n" + SQL)
         if jobdone:
             self.redirect('/completed/'+job)
         else:
-            pass
-            #NEED TO DO SQL QUERY TO GET analyses
-            self.render("waiting.html", user=user, job=job, analyses=analyses)
+            SQL = "SELECT analysis FROM meta_analysis_analyses WHERE job = %s"
+            try:
+                pgcursor.execute(SQL, (jobid,))
+                jobhold = pgcursor.fetchall()
+                pgcursor.close()
+            except Exception, e:
+                raise SyntaxError("ERROR: JOB INFO CAN NOT BE RETRIEVED:\n"+
+                    str(e) + SQL % jobid)
+            analyses = []
+            for analysis in jobhold:
+                analyses.append(analysis[0])
+            self.render("waiting.html", user=username, job=job, analyses=analyses)
 
     @tornado.web.authenticated
     #This post function takes care of actual job submission
@@ -201,6 +212,25 @@ class WaitingHandler(BaseHandler):
             analyses=analyses)
         #MUST CALL CELERY AFTER PAGE CALL!
         switchboard.delay(user, metaAnalysis)
+
+class RunningHandler(BaseHandler):
+    '''Currently running jobs list handler'''
+    @tornado.web.authenticated
+    def get(self):
+        username = self.get_current_user()
+        SQL = "SELECT job, date_added FROM meta_analysis_jobs WHERE \
+        username = %s AND done = false"
+        try:
+            pgcursor = postgres.cursor(cursor_factory=DictCursor)
+            pgcursor.execute(SQL, (username,))
+            jobs = pgcursor.fetchall()
+            pgcursor.close()
+        except:
+            raise SyntaxError("ERROR: JOB INFO CAN NOT BE RETRIEVED:\n" + SQL)
+        if jobs == None:
+            jobs = []
+        self.render("runningmeta.html", user=username, jobs=jobs)
+
 
 class FileHandler(BaseHandler):
     '''File upload handler'''
@@ -227,15 +257,14 @@ class ShowJobHandler(BaseHandler):
     def get(self, job):
         user = self.get_current_user()
 
-        SQL = "SELECT * FROM meta_analysis_analyses WHERE EXISTS (SELECT id \
-            FROM meta_analysis_jobs WHERE username ='%s' and job = '%s')"\
-         % (user, job)
+        SQL = "SELECT * FROM meta_analysis_analyses WHERE job = (SELECT id \
+            FROM meta_analysis_jobs WHERE username =%s and job = %s)"
         try:
             pgcursor = postgres.cursor(cursor_factory=DictCursor)
-            pgcursor.execute(SQL)
+            pgcursor.execute(SQL, (user, job))
             jobinfo = pgcursor.fetchall()
             pgcursor.close()
-            self.render("jobinfo.html", user=user, job = job, jobinfo=jobinfo)
+            self.render("jobinfo.html", user=user, job=job, jobinfo=jobinfo)
         except Exception, e:
             raise SyntaxError("ERROR:JOB INFO CAN'T BE RETRIEVED:\n"+e+"\n"+SQL)
 
@@ -328,6 +357,7 @@ class Application(tornado.web.Application):
             (r"/auth/logout/", AuthLogoutHandler),
             (r"/auth/create/", AuthCreateHandler),
             (r"/waiting/(.*)", WaitingHandler),
+            (r"/running/", RunningHandler),
             (r"/consumer/", MessageHandler),
             (r"/fileupload/", FileHandler),
             (r"/completed/(.*)", ShowJobHandler),

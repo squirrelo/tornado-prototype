@@ -1,0 +1,13 @@
+{% extends sitebase.html %}
+
+{% block content %}
+<h1>Currently running meta-analyses</h1>
+  {% for job in jobs %}
+    <p>
+    <b><a href="/waiting/{{job['job']}}">{{job['job']}}</a></b><br />
+    Started {{job['date_added']}}
+    </p>
+  {% end %}
+<div id='error'></div>
+
+{% end %}
