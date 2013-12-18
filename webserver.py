@@ -1,7 +1,5 @@
 #login code modified from https://gist.github.com/guillaumevincent/4771570
 
-from os.path import splitext
-from random import randint
 import tornado.auth
 import tornado.escape
 import tornado.httpserver
@@ -15,20 +13,17 @@ from settings import *
 from app.tasks import switchboard, delete_job
 from push import MessageHandler
 from app.utils import MetaAnalysisData
-from redis import Redis
 from psycopg2 import connect as pg_connect
 from psycopg2.extras import DictCursor
+#following only needed for filehandler
+from os.path import splitext
+from random import randint
 
 try:
     postgres=pg_connect("dbname='qiita' user='defaultuser' \
         password='defaultpassword' host='localhost'")
 except:
     raise RuntimeError("ERROR: unable to connect to the POSTGRES database.")
-
-try:
-    r_server = Redis(host='localhost')
-except:
-    raise RuntimeError("ERROR: unable to connect to the REDIS database.")
 
 define("port", default=8888, help="run on the given port", type=int)
 
@@ -62,12 +57,11 @@ class MainHandler(BaseHandler):
     '''Index page'''
     @tornado.web.authenticated
     def get(self):
-        username = self.current_user
-        username = username.strip('" ')
-        SQL = "SELECT DISTINCT job, id FROM meta_analysis_jobs WHERE username = '%s'\
-        AND done = true ORDER BY job" % username
+        username = self.get_current_user()
+        SQL = "SELECT DISTINCT job, id FROM meta_analysis_jobs WHERE \
+        username = %s AND done = true ORDER BY job"
         pgcursor = postgres.cursor(cursor_factory=DictCursor)
-        pgcursor.execute(SQL)
+        pgcursor.execute(SQL, (username,))
         completedjobs = pgcursor.fetchall()
         if completedjobs == None:
             completedjobs = []
@@ -188,7 +182,8 @@ class WaitingHandler(BaseHandler):
         if jobdone:
             self.redirect('/completed/'+job)
         else:
-            SQL = "SELECT analysis FROM meta_analysis_analyses WHERE job = %s"
+            SQL = "SELECT datatype, analysis FROM meta_analysis_analyses \
+                WHERE job = %s"
             try:
                 pgcursor.execute(SQL, (jobid,))
                 jobhold = pgcursor.fetchall()
@@ -198,14 +193,13 @@ class WaitingHandler(BaseHandler):
                     str(e) + SQL % jobid)
             analyses = []
             for analysis in jobhold:
-                analyses.append(analysis[0])
+                analyses.append(analysis[0]+":"+analysis[1])
             self.render("waiting.html", user=username, job=job, analyses=analyses)
 
     @tornado.web.authenticated
     #This post function takes care of actual job submission
     def post(self, page):
         user = self.get_current_user()
-        r_server.rpush(user + ":jobs", metaAnalysis.get_job())
         analyses = metaAnalysis.options.keys()
         analyses.sort()
         self.render("waiting.html", user=user, job=metaAnalysis.get_job(), 
@@ -258,7 +252,7 @@ class ShowJobHandler(BaseHandler):
         user = self.get_current_user()
 
         SQL = "SELECT * FROM meta_analysis_analyses WHERE job = (SELECT id \
-            FROM meta_analysis_jobs WHERE username =%s and job = %s)"
+            FROM meta_analysis_jobs WHERE username = %s and job = %s)"
         try:
             pgcursor = postgres.cursor(cursor_factory=DictCursor)
             pgcursor.execute(SQL, (user, job))
@@ -273,13 +267,12 @@ class ShowJobHandler(BaseHandler):
     def post(self, page):
         job = self.get_argument('job')
         user = self.get_current_user()
-        SQL = "SELECT * FROM meta_analysis_analyses WHERE EXISTS (SELECT id \
-            FROM meta_analysis_jobs WHERE username ='%s' and job = '%s') ORDER\
-            BY datatype"\
-         % (user, job)
+        SQL = "SELECT * FROM meta_analysis_analyses WHERE job = (SELECT id \
+            FROM meta_analysis_jobs WHERE username = %s and job = %s) ORDER BY \
+            datatype"
         try:
             pgcursor = postgres.cursor(cursor_factory=DictCursor)
-            pgcursor.execute(SQL)
+            pgcursor.execute(SQL, (user, job))
             jobinfo = pgcursor.fetchall()
             pgcursor.close()
         except:
@@ -347,7 +340,7 @@ class MetaAnalysisHandler(BaseHandler):
 
 class MockupHandler(BaseHandler):
     def get(self):
-        self.render("mockup.html", user=self.current_user)
+        self.render("mockup.html", user=self.get_current_user())
 
 class Application(tornado.web.Application):
     def __init__(self):

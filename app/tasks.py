@@ -5,9 +5,19 @@ from celery import signature, group
 from time import sleep
 from json import dumps
 from random import randint
-from app.database_connections import r_server, postgres
-from psycopg2.extras import DictCursor
+from redis import Redis
+from psycopg2 import connect as pg_connect
 
+try:
+    r_server = Redis()
+except:
+      raise RuntimeError("ERROR: unable to connect to the REDIS database.")
+
+try:
+    postgres = pg_connect("dbname='qiita' user='defaultuser' \
+        password='defaultpassword' host='localhost'")
+except:
+    raise RuntimeError("ERROR: unable to connect to the POSTGRES database.")
 
 def push_notification(user, job, analysis, msg, files=[], done=False):
     '''Creates JSON and takes care of push notification'''
@@ -33,7 +43,7 @@ def finish_job(user, jobname, jobid, results):
         if '"job": "'+jobname in str(message):
             r_server.lrem(user+':messages', message)
     #update job to done in job table
-    pgcursor = postgres.cursor(cursor_factory=DictCursor)
+    pgcursor = postgres.cursor()
     SQL = "UPDATE meta_analysis_jobs SET done = true WHERE id = %s"
     try:
         pgcursor.execute(SQL, (jobid,))
@@ -64,16 +74,18 @@ def finish_job(user, jobname, jobid, results):
 
 @celery.task
 def delete_job(user, jobid):
-    SQL = 'DELETE FROM meta_analysis_jobs WHERE id = %s;' % jobid
-    SQL += 'DELETE FROM meta_analysis_analyses WHERE job = %s;' % jobid
     try:
-        pgcursor.execute(SQL)
+        pgcursor = postgres.cursor()
+        pgcursor.execute('DELETE FROM meta_analysis_jobs WHERE id = %s', 
+            (jobid,))
+        pgcursor.execute('DELETE FROM meta_analysis_analyses WHERE job = %s', 
+            (jobid,))
         postgres.commit()
+        pgcursor.close()
     except Exception, e:
         postgres.rollback()
         raise Exception("Can't remove metaanalysis from database!\n"+str(e)+\
             "\n"+SQL)
-
 
 @celery.task
 def switchboard(user, analysis_data):
@@ -84,7 +96,7 @@ def switchboard(user, analysis_data):
         analysis_data: MetaAnalysisData object with all information in it.
 
     OUTPUT: NONE '''
-    pgcursor = postgres.cursor(cursor_factory=DictCursor)
+    pgcursor = postgres.cursor()
     jobname = analysis_data.get_job()
     #insert job into the postgres database
     SQL = "INSERT INTO meta_analysis_jobs (username, job, studies, metadata, \
