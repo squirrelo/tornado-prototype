@@ -25,7 +25,7 @@ try:
 except:
     raise RuntimeError("ERROR: unable to connect to the POSTGRES database.")
 
-define("port", default=8888, help="run on the given port", type=int)
+define("port", default=443, help="run on the given port", type=int)
 
 metaAnalysis = MetaAnalysisData()
 
