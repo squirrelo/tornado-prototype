@@ -2,10 +2,10 @@
 
 {% block content %}
 <h1>Currently running meta-analyses</h1>
-  {% for job in jobs %}
+  {% for a in analyses %}
     <p>
-    <b><a href="/waiting/{{job['job']}}">{{job['job']}}</a></b><br />
-    Started {{job['date_added']}}
+    <b><a href="/waiting/{{a['analysis_name']}}">{{a['analysis_name']}}</a></b><br />
+    Started {{a['analysis_timestamp']}}
     </p>
   {% end %}
 <div id='error'></div>

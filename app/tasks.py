@@ -37,55 +37,56 @@ def push_notification(user, job, analysis, msg, files=[], done=False):
     r_server.publish(user, jsoninfo)
 
 
-def finish_job(user, jobname, jobid, results):
+def finish_analysis(user, analysisname, analysisid, results):
     #wipe out all messages from redis list so no longer pushed to user
     for message in r_server.lrange(user+':messages', 0, -1):
-        if '"job": "'+jobname in str(message):
+        if '"analysis": "'+analysisname in str(message):
             r_server.lrem(user+':messages', message)
     #update job to done in job table
     pgcursor = postgres.cursor()
-    SQL = "UPDATE meta_analysis_jobs SET done = true WHERE id = %s"
+    SQL = "UPDATE qiita_analysis SET done = true WHERE analysis_id = %s"
     try:
-        pgcursor.execute(SQL, (jobid,))
+        pgcursor.execute(SQL, (analysisid,))
         postgres.commit()
     except Exception, e:
+        pgcursor.close()
         postgres.rollback()
-        raise Exception("Can't finish off job!\n"+str(e)+\
+        raise Exception("Can't finish off analysis!\n"+str(e)+\
             "\n"+SQL)
     #convert list of files to SQL formatted list
     for result in results:
         result[0] = "{"+','.join(result[0])+"}"
-        result.append(str(jobid))
+        result.append(str(analysisid))
     #update all analyses in analysis table to done and with their results
-    SQL = "UPDATE meta_analysis_analyses SET done = true, results = %s  WHERE \
-    datatype = %s AND analysis = %s AND job = %s"
+    SQL = "UPDATE qiita_job SET job_done = true, job_results = %s  WHERE \
+    job_datatype = %s AND job_type = %s AND analysis_id = %s"
     try:
         pgcursor.executemany(SQL, results)
         postgres.commit()
         pgcursor.close()
     except Exception, e:
+        pgcursor.close()
         postgres.rollback()
         for result in results:
             print SQL % result
-        raise Exception("Can't finish off job!\n"+str(e)+"\n")
-    #finally, push finisjed state
-    push_notification(user, jobname, 'done', 'allcomplete')
+        raise Exception("Can't finish off jobs!\n"+str(e))
+    #finally, push finished state
+    push_notification(user, analysisname, 'done', 'allcomplete')
 
 
 @celery.task
 def delete_job(user, jobid):
     try:
         pgcursor = postgres.cursor()
-        pgcursor.execute('DELETE FROM meta_analysis_jobs WHERE id = %s', 
+        pgcursor.execute('DELETE FROM qiita_job WHERE analysis_id = %s', 
             (jobid,))
-        pgcursor.execute('DELETE FROM meta_analysis_analyses WHERE job = %s', 
+        pgcursor.execute('DELETE FROM qiita_analysis WHERE analysis_id = %s', 
             (jobid,))
         postgres.commit()
         pgcursor.close()
     except Exception, e:
         postgres.rollback()
-        raise Exception("Can't remove metaanalysis from database!\n"+str(e)+\
-            "\n"+SQL)
+        raise Exception("Can't remove metaanalysis from database!\n"+str(e))
 
 @celery.task
 def switchboard(user, analysis_data):
@@ -98,22 +99,23 @@ def switchboard(user, analysis_data):
     OUTPUT: NONE '''
     pgcursor = postgres.cursor()
     jobname = analysis_data.get_job()
-    #insert job into the postgres database
-    SQL = "INSERT INTO meta_analysis_jobs (username, job, studies, metadata, \
-        date_added) VALUES ('%s', '%s', '%s', '%s', 'now') RETURNING id" % (user, jobname,
-        "{"+','.join(analysis_data.get_studies())+"}", 
-        "{"+','.join(analysis_data.get_metadata())+"}")
+    #insert analysis into the postgres analysis table
+    SQL = '''INSERT INTO qiita_analysis (qiita_username, analysis_name, 
+        analysis_studies, analysis_metadata, analysis_timestamp) VALUES 
+        (%s, %s, %s, %s, 'now') RETURNING analysis_id'''
     try:
-        pgcursor.execute(SQL)
+        pgcursor.execute(SQL, (user, jobname, 
+            "{"+','.join(analysis_data.get_studies())+"}", 
+            "{"+','.join(analysis_data.get_metadata())+"}"))
         jobid = pgcursor.fetchone()[0]
         postgres.commit()
     except Exception, e:
         postgres.rollback()
-        raise Exception("Can't add metaanalysis to database!\n"+str(e)+\
+        raise Exception("Can't add metaanalysis to table!\n"+str(e)+\
             "\n"+SQL)
 
-    #insert analyses into options database
-    SQL="INSERT INTO meta_analysis_analyses (job, datatype, analysis, options) VALUES "
+    #insert all jobs into jobs table
+    SQL="INSERT INTO qiita_job (analysis_id,job_datatype,job_type,job_options) VALUES "
     for datatype in analysis_data.get_datatypes():
         for analysis in analysis_data.get_analyses(datatype):
             SQL += "(%i,'%s','%s','%s')," % (jobid, datatype, analysis, 
@@ -126,7 +128,7 @@ def switchboard(user, analysis_data):
         pgcursor.close()
     except Exception, e:
         postgres.rollback()
-        print "Can't add metaanalysis options to database!\n"+str(e)+\
+        print "Can't add metaanalysis jobs to table!\n"+str(e)+\
             "\n"+SQL
 
     #setup analysis
@@ -139,7 +141,7 @@ def switchboard(user, analysis_data):
     job = group(analgroup)
     res = job()
     results = res.get()
-    finish_job(user, jobname, jobid, results)
+    finish_analysis(user, jobname, jobid, results)
 
 
 @celery.task

@@ -1,0 +1,17 @@
+{% extends sitebase.html %}
+{%block content %}
+    <h1>Analysis {{analysis}}</h1>  
+    {% for astep in analysisinfo %}
+        {{astep['job_datatype']}} - {{astep['job_type']}}<br />
+        {% if astep['job_error'] %}
+            <span color='Red'>JOB FINISHED WITH ERROR!</span>
+        {% else %}
+            {% if astep['job_results'] != None %}
+                {% for file in astep['results'] %}
+                <a href="../{{file}}">{{file}}</a> 
+                {% end %}
+            {% end %}
+        {% end %}
+        <br \>
+    {% end %}
+{% end %}
